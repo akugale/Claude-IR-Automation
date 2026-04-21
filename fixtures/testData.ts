@@ -9,7 +9,21 @@ export const users = {
   },
 };
 
+const ts = Date.now();
+const suffix = ts.toString().slice(-6);
+
 export const counterpartyTypeData = {
-  code: `CP${Date.now().toString().slice(-6)}`,
-  description: `Counterparty Type ${new Date().toISOString()}`,
+  code: `CP${suffix}`,
+  description: `Counterparty Type ${new Date(ts).toISOString()}`,
+};
+
+export const counterpartyTypeEditData = {
+  code: `ED${suffix}`,
+  description: `Edit Test ${new Date(ts).toISOString()}`,
+  updatedDescription: `Updated Description ${new Date(ts).toISOString()}`,
+};
+
+export const counterpartyTypeDeleteData = {
+  code: `DL${suffix}`,
+  description: `Delete Test ${new Date(ts).toISOString()}`,
 };
