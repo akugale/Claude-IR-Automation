@@ -32,6 +32,11 @@ export class TableComponent {
     await expect(row.first()).toBeVisible();
   }
 
+  async verifyRowNotExists(text: string): Promise<void> {
+    const rows = this.table.locator('tbody tr').filter({ hasText: text });
+    await expect(rows).toHaveCount(0);
+  }
+
   async clickRowActionByCellText(rowText: string, actionLabel: string): Promise<void> {
     const row = this.table.locator('tbody tr').filter({ hasText: rowText }).first();
     await expect(row).toBeVisible();

@@ -2,18 +2,20 @@ import { expect, Locator, Page } from '@playwright/test';
 import { TableComponent } from '../components/TableComponent';
 
 export class CounterpartyTypePage {
-  private readonly newCounterpartyModal;
   private readonly codeInput;
   private readonly descriptionInput;
   private readonly addInModalButton;
+  private readonly updateInModalButton;
+  private readonly confirmDeleteYesButton;
   private readonly table;
   private readonly mainNavigation;
 
   constructor(private readonly page: Page) {
-    this.newCounterpartyModal = this.page.locator('div:has-text("New Counterparty Type")').filter({ has: this.page.getByPlaceholder('Enter code') }).first();
     this.codeInput = this.page.getByPlaceholder('Enter code').first();
     this.descriptionInput = this.page.getByPlaceholder('Enter description').first();
     this.addInModalButton = this.page.getByRole('button', { name: /^add$/i }).last();
+    this.updateInModalButton = this.page.getByRole('button', { name: /^update$/i });
+    this.confirmDeleteYesButton = this.page.getByRole('button', { name: /^yes$/i });
     this.table = new TableComponent(
       this.page,
       'table',
@@ -33,16 +35,73 @@ export class CounterpartyTypePage {
   async addCounterpartyType(code: string, description: string): Promise<void> {
     const addIconButton = await this.getAddIconButton();
     await addIconButton.click();
-    await expect(this.newCounterpartyModal).toBeVisible();
+    await expect(this.page.getByText('New Counterparty Type', { exact: true })).toBeVisible();
     await this.codeInput.fill(code);
     await this.descriptionInput.fill(description);
     await this.addInModalButton.click();
-    await expect(this.newCounterpartyModal).toBeHidden();
+    await expect(this.page.getByText('New Counterparty Type', { exact: true })).toBeHidden();
+  }
+
+  async editCounterpartyType(code: string, newDescription: string): Promise<void> {
+    await this.clickRowAction(code, 'ph-pencil-simple');
+    await expect(this.page.getByText('Edit Counterparty Type', { exact: true })).toBeVisible();
+    await this.descriptionInput.clear();
+    await this.descriptionInput.fill(newDescription);
+    await this.updateInModalButton.click();
+    await expect(this.page.getByText('Edit Counterparty Type', { exact: true })).toBeHidden();
+  }
+
+  async deleteCounterpartyType(code: string): Promise<void> {
+    await this.clickRowAction(code, 'ph-trash');
+    await expect(this.page.getByText('Confirm Delete', { exact: true })).toBeVisible();
+    await this.confirmDeleteYesButton.click();
+    await expect(this.page.getByText('Confirm Delete', { exact: true })).toBeHidden();
+  }
+
+  async openViewModal(code: string): Promise<void> {
+    await this.clickRowAction(code, 'ph-eye');
+    await expect(this.page.getByText('View Counterparty Type', { exact: true })).toBeVisible();
+  }
+
+  async verifyViewModalIsReadOnly(): Promise<void> {
+    await expect(this.codeInput).toBeDisabled();
+    await expect(this.descriptionInput).toBeDisabled();
+  }
+
+  async closeOpenModal(): Promise<void> {
+    await this.page.keyboard.press('Escape');
+  }
+
+  async openAddModal(): Promise<void> {
+    const addIconButton = await this.getAddIconButton();
+    await addIconButton.click();
+    await expect(this.page.getByText('New Counterparty Type', { exact: true })).toBeVisible();
+  }
+
+  async verifyAddButtonDisabled(): Promise<void> {
+    await expect(this.addInModalButton).toBeDisabled();
+  }
+
+  async verifyAddButtonEnabled(): Promise<void> {
+    await expect(this.addInModalButton).toBeEnabled();
   }
 
   async verifyRecordExists(code: string, description: string): Promise<void> {
     await this.table.search(code);
     await this.table.verifyRowExistsByValues([code, description]);
+  }
+
+  async verifyRecordNotExists(code: string): Promise<void> {
+    await this.table.search(code);
+    await this.table.verifyRowNotExists(code);
+  }
+
+  // clicks an action icon button (ph-pencil-simple | ph-trash | ph-eye) on the row matching code
+  private async clickRowAction(code: string, iconClass: string): Promise<void> {
+    await this.table.search(code);
+    const row = this.page.locator('tbody tr').filter({ hasText: code }).first();
+    await expect(row).toBeVisible();
+    await row.locator(`button:has(.${iconClass})`).click();
   }
 
   private async clickNavNode(label: string): Promise<void> {
