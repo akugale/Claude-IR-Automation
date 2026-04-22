@@ -27,3 +27,5 @@ export const counterpartyTypeDeleteData = {
   code: `DL${suffix}`,
   description: `Delete Test ${new Date(ts).toISOString()}`,
 };
+
+export const knownExistingCode = 'BFSI';
