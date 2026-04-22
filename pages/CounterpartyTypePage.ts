@@ -7,6 +7,9 @@ export class CounterpartyTypePage {
   private readonly addInModalButton;
   private readonly updateInModalButton;
   private readonly confirmDeleteYesButton;
+  private readonly resetInModalButton;
+  private readonly exportPdfButton;
+  private readonly exportExcelButton;
   private readonly table;
   private readonly mainNavigation;
 
@@ -16,6 +19,9 @@ export class CounterpartyTypePage {
     this.addInModalButton = this.page.getByRole('button', { name: /^add$/i }).last();
     this.updateInModalButton = this.page.getByRole('button', { name: /^update$/i });
     this.confirmDeleteYesButton = this.page.getByRole('button', { name: /^yes$/i });
+    this.resetInModalButton = this.page.getByRole('button', { name: /^reset$/i });
+    this.exportPdfButton = this.page.locator('button.export-pdf');
+    this.exportExcelButton = this.page.locator('button.export-excel');
     this.table = new TableComponent(
       this.page,
       'table',
@@ -84,6 +90,57 @@ export class CounterpartyTypePage {
 
   async verifyAddButtonEnabled(): Promise<void> {
     await expect(this.addInModalButton).toBeEnabled();
+  }
+
+  async triggerExportPdf(): Promise<void> {
+    const downloadPromise = this.page.waitForEvent('download');
+    await this.exportPdfButton.click();
+    await expect(this.page.getByText('PDF export initiated')).toBeVisible();
+    const download = await downloadPromise;
+    expect(download.suggestedFilename()).toBeTruthy();
+  }
+
+  async triggerExportExcel(): Promise<void> {
+    const downloadPromise = this.page.waitForEvent('download');
+    await this.exportExcelButton.click();
+    await expect(this.page.getByText('Excel export initiated')).toBeVisible();
+    const download = await downloadPromise;
+    expect(download.suggestedFilename()).toBeTruthy();
+  }
+
+  async getFirstTableRowCode(): Promise<string> {
+    return this.page.locator('tbody tr').first().locator('td').first().innerText();
+  }
+
+  async clickSortByColumn(columnName: string): Promise<void> {
+    await this.page
+      .locator('th.p-datatable-sortable-column')
+      .filter({ hasText: columnName })
+      .click();
+  }
+
+  async getColumnSortOrder(columnName: string): Promise<string | null> {
+    return this.page
+      .locator('th.p-datatable-sortable-column')
+      .filter({ hasText: columnName })
+      .getAttribute('aria-sort');
+  }
+
+  async submitAddForm(): Promise<void> {
+    await this.addInModalButton.click();
+  }
+
+  async clickResetInModal(): Promise<void> {
+    await this.resetInModalButton.click();
+  }
+
+  async verifyModalFieldsEmpty(): Promise<void> {
+    await expect(this.codeInput).toHaveValue('');
+    await expect(this.descriptionInput).toHaveValue('');
+  }
+
+  async verifyAddModalOpen(): Promise<void> {
+    await expect(this.page.getByText('New Counterparty Type', { exact: true })).toBeVisible();
   }
 
   async verifyRecordExists(code: string, description: string): Promise<void> {
