@@ -7,5 +7,13 @@ node_modules/
 /playwright/.cache/
 /playwright/.auth/
 
+# Reports (generated, not committed)
+/allure-results/
+/allure-report/
+/reports/
+
 # Environment
 .env
+
+# Claude worktree
+.claude/
