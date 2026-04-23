@@ -12,7 +12,8 @@
     "report:allure:generate": "allure generate allure-results --clean -o allure-report",
     "report:allure:open": "allure open allure-report",
     "report:allure": "npm run report:allure:generate && npm run report:allure:open",
-    "clean": "rimraf allure-results allure-report reports test-results"
+    "clean": "rimraf allure-results allure-report reports test-results",
+    "test:fresh": "npm run clean && playwright test"
   },
   "keywords": [],
   "author": "",
