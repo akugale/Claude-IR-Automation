@@ -8,6 +8,7 @@
     "test:counterparty": "npm run clean && playwright test tests/counterparty.spec.ts",
     "test:industry": "npm run clean && playwright test tests/industry.spec.ts",
     "test:subindustry": "npm run clean && playwright test tests/subindustry.spec.ts",
+    "test:counterpartygroup": "npm run clean && playwright test tests/counterpartygroup.spec.ts",
     "test:headed": "playwright test --headed",
     "test:debug": "playwright test --debug",
     "report:html": "playwright show-report reports/html",
