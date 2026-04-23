@@ -19,7 +19,7 @@ export default defineConfig({
     headless: false,
     baseURL: process.env.BASE_URL ?? 'http://localhost:3000',
     screenshot: 'only-on-failure',
-    video: 'retain-on-failure',
+    video: 'off',
     trace: 'retain-on-failure',
     actionTimeout: 15000,
     navigationTimeout: 30000,
