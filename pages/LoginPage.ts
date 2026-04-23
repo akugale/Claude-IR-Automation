@@ -6,9 +6,9 @@ export class LoginPage {
   private readonly signInButton;
 
   constructor(private readonly page: Page) {
-    this.usernameInput = this.page.getByLabel(/login|username/i, { exact: false });
-    this.passwordInput = this.page.getByRole('textbox', { name: /password/i });
-    this.signInButton = this.page.getByRole('button', { name: /^login$|sign in/i });
+    this.usernameInput = this.page.locator('#username');
+    this.passwordInput = this.page.locator('#password');
+    this.signInButton = this.page.locator('button[type="submit"]');
   }
 
   async goto(): Promise<void> {
