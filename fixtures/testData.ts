@@ -29,3 +29,18 @@ export const counterpartyTypeDeleteData = {
 };
 
 export const knownExistingCode = 'BFSI';
+
+export const industryData = {
+  code: `IN${suffix}`,
+  description: `Industry ${new Date(ts).toISOString()}`,
+  isTrading: true,
+};
+
+export const industryEditData = {
+  code: `IE${suffix}`,
+  description: `Industry Edit ${new Date(ts).toISOString()}`,
+  updatedDescription: `Industry Updated ${new Date(ts).toISOString()}`,
+  isTrading: false,
+};
+
+export const knownExistingIndustryCode = '1';

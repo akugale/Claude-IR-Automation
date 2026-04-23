@@ -7,7 +7,7 @@ export default defineConfig({
   expect: {
     timeout: 10000,
   },
-  retries: 1,
+  retries: 0,
   workers: 1,
   reporter: [
     ['list'],
@@ -23,6 +23,10 @@ export default defineConfig({
     trace: 'retain-on-failure',
     actionTimeout: 15000,
     navigationTimeout: 30000,
+    viewport: null,
+    launchOptions: {
+      args: ['--start-maximized'],
+    },
   },
   projects: [
     {
@@ -31,6 +35,7 @@ export default defineConfig({
         browserName: 'chromium',
         launchOptions: {
           executablePath: 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+          args: ['--start-maximized'],
         },
       },
     },
