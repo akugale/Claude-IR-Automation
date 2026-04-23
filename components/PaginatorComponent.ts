@@ -58,6 +58,11 @@ export class PaginatorComponent {
     await this.page.locator('button[aria-label="Previous Page"]').click();
   }
 
+  async isLastPage(): Promise<boolean> {
+    const cls = await this.page.locator('button[aria-label="Next Page"]').getAttribute('class') ?? '';
+    return cls.includes('p-disabled');
+  }
+
   // ─── Disabled state assertions ───────────────────────────────────────────────
 
   async verifyFirstPageDisabled(): Promise<void> {

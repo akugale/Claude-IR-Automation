@@ -75,6 +75,13 @@ export class TableComponent {
     return this.table.locator('tbody tr').first().locator('td').nth(cellIndex).innerText();
   }
 
+  async getAllColumnValues(cellIndex: number): Promise<string[]> {
+    return this.table.locator('tbody tr').evaluateAll(
+      (rows, idx) => rows.map(r => (r.querySelectorAll('td')[idx] as HTMLElement)?.innerText?.trim() ?? ''),
+      cellIndex,
+    );
+  }
+
   // ─── Row actions ─────────────────────────────────────────────────────────────
 
   async clickRowAction(rowText: string, iconClass: string): Promise<void> {
