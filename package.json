@@ -4,8 +4,8 @@
   "description": "Playwright TypeScript automation framework for CareEdge IR system",
   "main": "index.js",
   "scripts": {
-    "test": "playwright test",
-    "test:counterparty": "playwright test tests/counterparty.spec.ts",
+    "test": "npm run clean && playwright test",
+    "test:counterparty": "npm run clean && playwright test tests/counterparty.spec.ts",
     "test:headed": "playwright test --headed",
     "test:debug": "playwright test --debug",
     "report:html": "playwright show-report reports/html",
