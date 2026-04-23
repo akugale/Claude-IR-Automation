@@ -155,7 +155,7 @@ test.describe('Counterparty Type', () => {
   test.skip('[TC_021] edited entries sent for authorization — checker flow pending', async () => {});
 
   // ─── TC_022 ─────────────────────────────────────────────────────────────────
-  test('[TC_022] edit modal reset clears all fields', async () => {
+  test('[TC_022] edit modal reset restores original field values', async () => {
     await counterpartyTypePage.editAndResetModal('BFSI', 'TEMPORARY_DESCRIPTION');
   });
 

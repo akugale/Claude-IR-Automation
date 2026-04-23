@@ -44,3 +44,18 @@ export const industryEditData = {
 };
 
 export const knownExistingIndustryCode = '1';
+
+export const subIndustryData = {
+  code: `SI${suffix}`,
+  description: `Sub Industry ${new Date(ts).toISOString()}`,
+  industry: 'Pharmaceuticals',
+};
+
+export const subIndustryEditData = {
+  code: `SE${suffix}`,
+  description: `Sub Industry Edit ${new Date(ts).toISOString()}`,
+  updatedDescription: `Sub Industry Updated ${new Date(ts).toISOString()}`,
+  industry: 'Pharmaceuticals',
+};
+
+export const knownExistingSubIndustryCode = '01';

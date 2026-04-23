@@ -134,10 +134,11 @@ export class CounterpartyTypePage extends BasePage {
 
   async editAndResetModal(code: string, tempDescription: string): Promise<void> {
     await this.openEditModal(code);
+    const originalDescription = await this.descriptionInput.inputValue();
     await this.descriptionInput.clear();
     await this.descriptionInput.fill(tempDescription);
     await this.resetInModalButton.click();
-    await expect(this.descriptionInput).toHaveValue('');
+    await expect(this.descriptionInput).toHaveValue(originalDescription);
   }
 
   // ─── TC_023 ──────────────────────────────────────────────────────────────────

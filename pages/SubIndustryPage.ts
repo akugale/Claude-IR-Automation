@@ -4,14 +4,14 @@ import { PaginatorComponent } from '../components/PaginatorComponent';
 import { TableComponent } from '../components/TableComponent';
 import { BasePage } from './BasePage';
 
-export class IndustryPage extends BasePage {
+export class SubIndustryPage extends BasePage {
   readonly table: TableComponent;
   readonly paginator: PaginatorComponent;
   readonly export: ExportComponent;
 
   private readonly codeInput: Locator;
   private readonly descriptionInput: Locator;
-  private readonly isTradingCheckbox: Locator;
+  private readonly industryDropdown: Locator;
   private readonly addInModalButton: Locator;
   private readonly updateInModalButton: Locator;
   private readonly resetInModalButton: Locator;
@@ -26,7 +26,7 @@ export class IndustryPage extends BasePage {
 
     this.codeInput = page.getByPlaceholder('Enter code').first();
     this.descriptionInput = page.getByPlaceholder('Enter description').first();
-    this.isTradingCheckbox = page.locator('p-checkbox, input[type="checkbox"]').first();
+    this.industryDropdown = page.locator('p-select:not(.p-paginator-rpp-dropdown)').first();
     this.addInModalButton = page.getByRole('button', { name: /^add$/i }).last();
     this.updateInModalButton = page.getByRole('button', { name: /^update$/i });
     this.resetInModalButton = page.getByRole('button', { name: /^reset$/i });
@@ -41,15 +41,15 @@ export class IndustryPage extends BasePage {
     await this.ensureLoggedIn();
     await this.clickNavNode('Reference Data');
     await this.clickNavNode('Counterparty Setup');
-    await this.clickNavNode('Industry');
-    await expect(this.page.getByRole('heading', { name: /^industry$/i })).toBeVisible();
+    await this.clickNavNode('Sub Industry');
+    await expect(this.page.getByRole('heading', { name: /sub.?industr/i })).toBeVisible();
     await this.getAddIconButton();
   }
 
   // ─── TC_001 ──────────────────────────────────────────────────────────────────
 
   async verifyScreenElements(): Promise<void> {
-    await expect(this.page.getByRole('heading', { name: /^industry$/i })).toBeVisible();
+    await expect(this.page.getByRole('heading', { name: /sub.?industr/i })).toBeVisible();
     await expect(this.page.locator('table')).toBeVisible();
     await expect(this.page.locator('button.export-pdf')).toBeVisible();
     await expect(this.page.locator('button.export-excel')).toBeVisible();
@@ -57,44 +57,20 @@ export class IndustryPage extends BasePage {
     await expect(this.page.locator('p-paginator')).toBeVisible();
   }
 
-  // ─── Cross-screen utility ─────────────────────────────────────────────────────
-
-  async getAllDescriptions(): Promise<string[]> {
-    await this.paginator.changeItemsPerPage(50);
-    const all: string[] = [];
-    while (true) {
-      const pageValues = await this.table.getAllColumnValues(1);
-      all.push(...pageValues.filter(v => v.length > 0));
-      if (await this.paginator.isLastPage()) break;
-      await this.paginator.clickNextPage();
-      await this.page.locator('table tbody tr').first().waitFor({ state: 'visible' });
-    }
-    return all;
-  }
-
   // ─── TC_002 ──────────────────────────────────────────────────────────────────
 
   async verifyAddModalContents(): Promise<void> {
     await expect(this.codeInput).toBeVisible();
     await expect(this.descriptionInput).toBeVisible();
-    // Is Trading checkbox is shown without a label in the UI
-    await expect(this.isTradingCheckbox).toBeVisible();
-    await expect(this.page.getByText('Is Trading')).toHaveCount(0);
+    await expect(this.industryDropdown).toBeVisible();
     await expect(this.resetInModalButton).toBeVisible();
     await expect(this.addInModalButton).toBeVisible();
   }
 
   // ─── TC_003b ─────────────────────────────────────────────────────────────────
 
-  async submitInvalidCode(invalidCode: string): Promise<void> {
-    await this.openAddModal();
-    await this.codeInput.fill(invalidCode);
-    await this.descriptionInput.fill('Test Description');
-    await this.addInModalButton.click();
-  }
-
   async verifyAddModalOpen(): Promise<void> {
-    await expect(this.page.getByText('New Industry', { exact: true })).toBeVisible();
+    await expect(this.page.getByText('New Sub Industry', { exact: true })).toBeVisible();
   }
 
   // ─── TC_006 ──────────────────────────────────────────────────────────────────
@@ -107,19 +83,33 @@ export class IndustryPage extends BasePage {
     await expect(this.addInModalButton).toBeEnabled();
   }
 
+  // ─── Industry dropdown ───────────────────────────────────────────────────────
+
+  async selectIndustry(industryName: string): Promise<void> {
+    await this.industryDropdown.locator('.p-select-dropdown').click();
+    await this.page.locator('[role="listbox"] [role="option"]').filter({ hasText: new RegExp(`^${industryName}$`) }).first().click();
+  }
+
+  async getIndustryDropdownOptions(): Promise<string[]> {
+    await this.industryDropdown.locator('.p-select-dropdown').click();
+    const options = await this.page.locator('[role="listbox"] [role="option"]').allInnerTexts();
+    await this.page.keyboard.press('Escape');
+    return options.map(o => o.trim());
+  }
+
   // ─── TC_018 ──────────────────────────────────────────────────────────────────
 
   async openEditModal(code: string): Promise<void> {
     await this.table.clickRowAction(code, 'ph-pencil-simple');
-    await expect(this.page.getByText('Edit Industry', { exact: true })).toBeVisible();
+    await expect(this.page.getByText('Edit Sub Industry', { exact: true })).toBeVisible();
   }
 
-  async editIndustry(code: string, newDescription: string): Promise<void> {
+  async editSubIndustry(code: string, newDescription: string): Promise<void> {
     await this.openEditModal(code);
     await this.descriptionInput.clear();
     await this.descriptionInput.fill(newDescription);
     await this.updateInModalButton.click();
-    await expect(this.page.getByText('Edit Industry', { exact: true })).toBeHidden();
+    await expect(this.page.getByText('Edit Sub Industry', { exact: true })).toBeHidden();
   }
 
   // ─── TC_020 ──────────────────────────────────────────────────────────────────
@@ -143,12 +133,38 @@ export class IndustryPage extends BasePage {
 
   async openViewModal(code: string): Promise<void> {
     await this.table.clickRowAction(code, 'ph-eye');
-    await expect(this.page.getByText('View Industry', { exact: true })).toBeVisible();
+    await expect(this.page.getByText('View Sub Industry', { exact: true })).toBeVisible();
   }
 
   async verifyViewModalIsReadOnly(): Promise<void> {
     await expect(this.codeInput).toBeDisabled();
     await expect(this.descriptionInput).toBeDisabled();
+    await expect(this.industryDropdown).toHaveClass(/p-disabled/);
+  }
+
+  // ─── TC_032 ──────────────────────────────────────────────────────────────────
+
+  async verifyIndustrySelected(industryName: string): Promise<void> {
+    await expect(this.industryDropdown.locator('.p-select-label')).toHaveText(industryName);
+  }
+
+  // ─── TC_033 ──────────────────────────────────────────────────────────────────
+
+  async editSubIndustryFullFields(code: string, newDescription: string, newIndustry: string): Promise<void> {
+    await this.openEditModal(code);
+    await this.descriptionInput.clear();
+    await this.descriptionInput.fill(newDescription);
+    await this.selectIndustry(newIndustry);
+    await this.updateInModalButton.click();
+    await expect(this.page.getByText('Edit Sub Industry', { exact: true })).toBeHidden();
+  }
+
+  // ─── TC_034 ──────────────────────────────────────────────────────────────────
+
+  async verifyViewModalData(expectedCode: string, expectedDescription: string, expectedIndustry: string): Promise<void> {
+    await expect(this.codeInput).toHaveValue(expectedCode);
+    await expect(this.descriptionInput).toHaveValue(expectedDescription);
+    await expect(this.industryDropdown.locator('.p-select-label')).toHaveText(expectedIndustry);
   }
 
   // ─── Shared helpers ──────────────────────────────────────────────────────────
@@ -156,22 +172,20 @@ export class IndustryPage extends BasePage {
   async openAddModal(): Promise<void> {
     const addIconButton = await this.getAddIconButton();
     await addIconButton.click();
-    await expect(this.page.getByText('New Industry', { exact: true })).toBeVisible();
+    await expect(this.page.getByText('New Sub Industry', { exact: true })).toBeVisible();
   }
 
   async closeOpenModal(): Promise<void> {
     await this.page.keyboard.press('Escape');
   }
 
-  async addIndustry(code: string, description: string, isTrading = false): Promise<void> {
+  async addSubIndustry(code: string, description: string, industry: string): Promise<void> {
     await this.openAddModal();
     await this.codeInput.fill(code);
     await this.descriptionInput.fill(description);
-    if (isTrading) {
-      await this.isTradingCheckbox.click();
-    }
+    await this.selectIndustry(industry);
     await this.addInModalButton.click();
-    await expect(this.page.getByText('New Industry', { exact: true })).toBeHidden();
+    await expect(this.page.getByText('New Sub Industry', { exact: true })).toBeHidden();
   }
 
   async verifyRecordExists(code: string, description: string): Promise<void> {
@@ -207,7 +221,7 @@ export class IndustryPage extends BasePage {
 
   private async getAddIconButton(): Promise<Locator> {
     const headingActionButtons = this.page
-      .getByRole('heading', { name: /^industry$/i })
+      .getByRole('heading', { name: /sub.?industr/i })
       .locator('..')
       .getByRole('button');
     const headingAddIcon = headingActionButtons.last();
