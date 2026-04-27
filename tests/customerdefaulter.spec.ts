@@ -1,14 +1,14 @@
 import { expect, test, BrowserContext, Page } from '@playwright/test';
 import { users } from '../fixtures/testData';
-import { CounterpartyGroupPage } from '../pages/CounterpartyGroupPage';
+import { CustomerDefaulterPage } from '../pages/CustomerDefaulterPage';
 import { LoginPage } from '../pages/LoginPage';
 
 const baseURL = process.env.BASE_URL ?? 'http://localhost:3000';
 
-test.describe('Counterparty Group', () => {
+test.describe('Customer Defaulter', () => {
   let context: BrowserContext;
   let page: Page;
-  let counterpartyGroupPage: CounterpartyGroupPage;
+  let customerDefaulterPage: CustomerDefaulterPage;
 
   test.beforeAll(async ({ browser }) => {
     context = await browser.newContext({ baseURL });
@@ -16,7 +16,7 @@ test.describe('Counterparty Group', () => {
     const loginPage = new LoginPage(page);
     await loginPage.goto();
     await loginPage.loginAs(users.maker.username, users.maker.password);
-    counterpartyGroupPage = new CounterpartyGroupPage(page);
+    customerDefaulterPage = new CustomerDefaulterPage(page);
   });
 
   test.afterAll(async () => {
@@ -24,79 +24,79 @@ test.describe('Counterparty Group', () => {
   });
 
   test.beforeEach(async () => {
-    await counterpartyGroupPage.goto();
+    await customerDefaulterPage.goto();
   });
 
   // ─── TC_001 ─────────────────────────────────────────────────────────────────
-  test('[TC_001] navigate to counterparty group screen and verify all elements', async () => {
-    await counterpartyGroupPage.verifyScreenElements();
+  test('[TC_001] navigate to customer defaulter screen and verify all elements', async () => {
+    await customerDefaulterPage.verifyScreenElements();
   });
 
   // ─── TC_008 ─────────────────────────────────────────────────────────────────
   test('[TC_008] filter each column shows filtered results and active indicator', async () => {
-    const columns = await counterpartyGroupPage.table.getFilterableColumnNames();
+    const columns = await customerDefaulterPage.table.getFilterableColumnNames();
     expect(columns.length).toBeGreaterThan(0);
     for (const col of columns) {
-      const colIdx = await counterpartyGroupPage.table.getColumnIndexByName(col);
-      const sampleValue = colIdx >= 0 ? await counterpartyGroupPage.table.getFirstRowCellText(colIdx) : '';
+      const colIdx = await customerDefaulterPage.table.getColumnIndexByName(col);
+      const sampleValue = colIdx >= 0 ? await customerDefaulterPage.table.getFirstRowCellText(colIdx) : '';
       if (!sampleValue) continue;
-      await counterpartyGroupPage.table.openColumnFilter(col);
-      await counterpartyGroupPage.table.applyColumnFilter(sampleValue);
+      await customerDefaulterPage.table.openColumnFilter(col);
+      await customerDefaulterPage.table.applyColumnFilter(sampleValue);
       expect(
-        await counterpartyGroupPage.table.isColumnFilterActive(col),
+        await customerDefaulterPage.table.isColumnFilterActive(col),
         `Column "${col}" filter active indicator missing`,
       ).toBe(true);
-      await counterpartyGroupPage.table.clearColumnFilter(col);
+      await customerDefaulterPage.table.clearColumnFilter(col);
     }
   });
 
   // ─── TC_009 ──────────────────────────────────────────────────────────────────
   test('[TC_009] sort by each column shows sort indicator for all sortable columns', async () => {
-    const columns = await counterpartyGroupPage.table.getSortableColumnNames();
+    const columns = await customerDefaulterPage.table.getSortableColumnNames();
     expect(columns.length).toBeGreaterThan(0);
     for (const col of columns) {
-      await counterpartyGroupPage.table.sortByColumn(col);
-      const order = await counterpartyGroupPage.table.getColumnSortOrder(col);
+      await customerDefaulterPage.table.sortByColumn(col);
+      const order = await customerDefaulterPage.table.getColumnSortOrder(col);
       expect(['ascending', 'descending'], `Column "${col}" sort indicator missing`).toContain(order);
     }
   });
 
   // ─── TC_010 — known failure: blank file (will fail) ─────────────────────────
   test('[TC_010] export PDF downloads file', async () => {
-    await counterpartyGroupPage.export.triggerPdf();
+    await customerDefaulterPage.export.triggerPdf();
   });
 
   // ─── TC_011 — known failure: blank file (will fail) ─────────────────────────
   test('[TC_011] export Excel downloads file', async () => {
-    await counterpartyGroupPage.export.triggerExcel();
+    await customerDefaulterPage.export.triggerExcel();
   });
 
   // ─── TC_012 — blocked by TC_010 (will fail) ──────────────────────────────────
   test('[TC_012] downloaded PDF data matches screen records', async () => {
-    await counterpartyGroupPage.export.downloadAndVerifyPdf();
+    await customerDefaulterPage.export.downloadAndVerifyPdf();
   });
 
   // ─── TC_013 — blocked by TC_011 (will fail) ──────────────────────────────────
   test('[TC_013] downloaded Excel data matches screen records', async () => {
-    await counterpartyGroupPage.export.downloadAndVerifyExcel();
+    await customerDefaulterPage.export.downloadAndVerifyExcel();
   });
 
   // ─── TC_025 ─────────────────────────────────────────────────────────────────
   test('[TC_025a] default items per page should be 20', async () => {
-    const defaultValue = await counterpartyGroupPage.paginator.getItemsPerPageValue();
+    const defaultValue = await customerDefaulterPage.paginator.getItemsPerPageValue();
     expect(defaultValue.trim()).toBe('20');
   });
 
   test('[TC_025b] items per page dropdown has expected options', async () => {
-    const options = await counterpartyGroupPage.paginator.getItemsPerPageOptions();
+    const options = await customerDefaulterPage.paginator.getItemsPerPageOptions();
     expect(options.length).toBeGreaterThan(0);
   });
 
   test('[TC_025c] changing items per page to 50 shows all available records', async () => {
-    await counterpartyGroupPage.paginator.changeItemsPerPage(50);
-    const count = await counterpartyGroupPage.table.getRowCount();
+    await customerDefaulterPage.paginator.changeItemsPerPage(50);
+    const count = await customerDefaulterPage.table.getRowCount();
     expect(count).toBeLessThanOrEqual(50);
-    const info = await counterpartyGroupPage.paginator.getInfoText();
+    const info = await customerDefaulterPage.paginator.getInfoText();
     expect(info).toMatch(/Showing 1 -/);
   });
 

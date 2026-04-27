@@ -39,7 +39,9 @@ export class PaginatorComponent {
   // ─── Page navigation ─────────────────────────────────────────────────────────
 
   async clickPageNumber(pageNum: number): Promise<void> {
-    await this.page.locator(`button[aria-label="${pageNum}"].p-paginator-page`).click();
+    const btn = this.page.locator(`button[aria-label="${pageNum}"].p-paginator-page`);
+    await btn.scrollIntoViewIfNeeded();
+    await btn.click();
   }
 
   async clickFirstPage(): Promise<void> {

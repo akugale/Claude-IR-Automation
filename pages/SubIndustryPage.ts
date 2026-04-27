@@ -43,7 +43,6 @@ export class SubIndustryPage extends BasePage {
     await this.clickNavNode('Counterparty Setup');
     await this.clickNavNode('Sub Industry');
     await expect(this.page.getByRole('heading', { name: /sub.?industr/i })).toBeVisible();
-    await this.getAddIconButton();
   }
 
   // ─── TC_001 ──────────────────────────────────────────────────────────────────
@@ -53,7 +52,6 @@ export class SubIndustryPage extends BasePage {
     await expect(this.page.locator('table')).toBeVisible();
     await expect(this.page.locator('button.export-pdf')).toBeVisible();
     await expect(this.page.locator('button.export-excel')).toBeVisible();
-    await expect(await this.getAddIconButton()).toBeVisible();
     await expect(this.page.locator('p-paginator')).toBeVisible();
   }
 

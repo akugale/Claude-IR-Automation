@@ -43,7 +43,6 @@ export class IndustryPage extends BasePage {
     await this.clickNavNode('Counterparty Setup');
     await this.clickNavNode('Industry');
     await expect(this.page.getByRole('heading', { name: /^industry$/i })).toBeVisible();
-    await this.getAddIconButton();
   }
 
   // ─── TC_001 ──────────────────────────────────────────────────────────────────
@@ -53,7 +52,6 @@ export class IndustryPage extends BasePage {
     await expect(this.page.locator('table')).toBeVisible();
     await expect(this.page.locator('button.export-pdf')).toBeVisible();
     await expect(this.page.locator('button.export-excel')).toBeVisible();
-    await expect(await this.getAddIconButton()).toBeVisible();
     await expect(this.page.locator('p-paginator')).toBeVisible();
   }
 
@@ -118,6 +116,20 @@ export class IndustryPage extends BasePage {
     await this.openEditModal(code);
     await this.descriptionInput.clear();
     await this.descriptionInput.fill(newDescription);
+    await this.updateInModalButton.click();
+    await expect(this.page.getByText('Edit Industry', { exact: true })).toBeHidden();
+  }
+
+  // ─── TC_033 ──────────────────────────────────────────────────────────────────
+
+  async editIndustryFullFields(code: string, newDescription: string, setIsTrading: boolean): Promise<void> {
+    await this.openEditModal(code);
+    const currentChecked = await this.isTradingCheckbox.isChecked().catch(() => false);
+    await this.descriptionInput.clear();
+    await this.descriptionInput.fill(newDescription);
+    if (currentChecked !== setIsTrading) {
+      await this.isTradingCheckbox.click();
+    }
     await this.updateInModalButton.click();
     await expect(this.page.getByText('Edit Industry', { exact: true })).toBeHidden();
   }

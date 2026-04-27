@@ -4,7 +4,7 @@ import { PaginatorComponent } from '../components/PaginatorComponent';
 import { TableComponent } from '../components/TableComponent';
 import { BasePage } from './BasePage';
 
-export class CounterpartyTypePage extends BasePage {
+export class BranchTypePage extends BasePage {
   readonly table: TableComponent;
   readonly paginator: PaginatorComponent;
   readonly export: ExportComponent;
@@ -16,6 +16,7 @@ export class CounterpartyTypePage extends BasePage {
   private readonly confirmDeleteYesButton: Locator;
   private readonly resetInModalButton: Locator;
   private readonly mainNavigation: Locator;
+  private readonly dialog: Locator;
 
   constructor(private readonly page: Page) {
     super(page);
@@ -23,13 +24,14 @@ export class CounterpartyTypePage extends BasePage {
     this.paginator = new PaginatorComponent(page);
     this.export = new ExportComponent(page);
 
-    this.codeInput = page.getByPlaceholder('Enter code').first();
-    this.descriptionInput = page.getByPlaceholder('Enter description').first();
-    this.addInModalButton = page.getByRole('button', { name: /^add$/i }).last();
+    this.codeInput = page.getByPlaceholder(/enter code/i).first();
+    this.descriptionInput = page.getByPlaceholder(/enter description/i).first();
+    this.addInModalButton = page.getByRole('button', { name: /^save$/i }).last();
     this.updateInModalButton = page.getByRole('button', { name: /^update$/i });
     this.confirmDeleteYesButton = page.getByRole('button', { name: /^yes$/i });
     this.resetInModalButton = page.getByRole('button', { name: /^reset$/i });
     this.mainNavigation = page.getByRole('navigation', { name: /main navigation/i });
+    this.dialog = page.locator('p-dialog:not([role="alertdialog"])');
   }
 
   // ─── Navigation ──────────────────────────────────────────────────────────────
@@ -38,18 +40,20 @@ export class CounterpartyTypePage extends BasePage {
     await this.page.goto('./');
     await this.ensureLoggedIn();
     await this.clickNavNode('Reference Data');
-    await this.clickNavNode('Counterparty Setup');
-    await this.clickNavNode('Counterparty Type');
-    await expect(this.page.getByRole('heading', { name: /counterparty type/i })).toBeVisible();
+    await this.clickNavNode('Branch');
+    await this.clickNavNode('Branch Type');
+    await expect(this.page.getByRole('heading', { name: /branch type/i })).toBeVisible();
+    await this.getAddIconButton();
   }
 
   // ─── TC_001 ──────────────────────────────────────────────────────────────────
 
   async verifyScreenElements(): Promise<void> {
-    await expect(this.page.getByRole('heading', { name: /counterparty type/i })).toBeVisible();
+    await expect(this.page.getByRole('heading', { name: /branch type/i })).toBeVisible();
     await expect(this.page.locator('table')).toBeVisible();
     await expect(this.page.locator('button.export-pdf')).toBeVisible();
     await expect(this.page.locator('button.export-excel')).toBeVisible();
+    await expect(await this.getAddIconButton()).toBeVisible();
     await expect(this.page.locator('p-paginator')).toBeVisible();
   }
 
@@ -58,29 +62,7 @@ export class CounterpartyTypePage extends BasePage {
   async verifyAddModalContents(): Promise<void> {
     await expect(this.codeInput).toBeVisible();
     await expect(this.descriptionInput).toBeVisible();
-    await expect(this.resetInModalButton).toBeVisible();
     await expect(this.addInModalButton).toBeVisible();
-  }
-
-  // ─── TC_003 / TC_020 ─────────────────────────────────────────────────────────
-
-  async addCounterpartyType(code: string, description: string): Promise<void> {
-    const addIconButton = await this.getAddIconButton();
-    await addIconButton.click();
-    await expect(this.page.getByText('New Counterparty Type', { exact: true })).toBeVisible();
-    await this.codeInput.fill(code);
-    await this.descriptionInput.fill(description);
-    await this.addInModalButton.click();
-    await expect(this.page.getByText('New Counterparty Type', { exact: true })).toBeHidden();
-  }
-
-  async editCounterpartyType(code: string, newDescription: string): Promise<void> {
-    await this.table.clickRowAction(code, 'ph-pencil-simple');
-    await expect(this.page.getByText('Edit Counterparty Type', { exact: true })).toBeVisible();
-    await this.descriptionInput.clear();
-    await this.descriptionInput.fill(newDescription);
-    await this.updateInModalButton.click();
-    await expect(this.page.getByText('Edit Counterparty Type', { exact: true })).toBeHidden();
   }
 
   // ─── TC_004 ──────────────────────────────────────────────────────────────────
@@ -117,7 +99,7 @@ export class CounterpartyTypePage extends BasePage {
 
   async openEditModal(code: string): Promise<void> {
     await this.table.clickRowAction(code, 'ph-pencil-simple');
-    await expect(this.page.getByText('Edit Counterparty Type', { exact: true })).toBeVisible();
+    await expect(this.updateInModalButton).toBeVisible();
   }
 
   async clickUpdateInModal(): Promise<void> {
@@ -125,7 +107,22 @@ export class CounterpartyTypePage extends BasePage {
   }
 
   async verifyNoAuthRequestToast(): Promise<void> {
-    await expect(this.page.getByText(/authoris/i)).not.toBeVisible({ timeout: 3000 });
+    await expect(this.page.locator('p-toast, .p-toast, .toast').getByText(/authoris/i)).not.toBeVisible({ timeout: 3000 });
+  }
+
+  // ─── TC_020 ──────────────────────────────────────────────────────────────────
+
+  async editBranchType(code: string, newDescription: string): Promise<void> {
+    await this.openEditModal(code);
+    await this.descriptionInput.clear();
+    await this.descriptionInput.fill(newDescription);
+    await this.updateInModalButton.click();
+    // Screen keeps modal open in maker-checker flow — close if still open
+    try {
+      await expect(this.updateInModalButton).toBeHidden({ timeout: 4000 });
+    } catch {
+      await this.page.keyboard.press('Escape');
+    }
   }
 
   // ─── TC_022 ──────────────────────────────────────────────────────────────────
@@ -149,12 +146,29 @@ export class CounterpartyTypePage extends BasePage {
 
   async openViewModal(code: string): Promise<void> {
     await this.table.clickRowAction(code, 'ph-eye');
-    await expect(this.page.getByText('View Counterparty Type', { exact: true })).toBeVisible();
+    await expect(this.page.getByRole('dialog')).toBeVisible();
+    await expect(this.page.getByRole('dialog').getByPlaceholder(/enter code/i).first()).toBeDisabled();
   }
 
   async verifyViewModalIsReadOnly(): Promise<void> {
-    await expect(this.codeInput).toBeDisabled();
-    await expect(this.descriptionInput).toBeDisabled();
+    const dialog = this.page.getByRole('dialog');
+    await expect(dialog.getByPlaceholder(/enter code/i).first()).toBeDisabled();
+    await expect(dialog.getByPlaceholder(/enter description/i).first()).toBeDisabled();
+  }
+
+  // ─── Cross-screen utility ────────────────────────────────────────────────────
+
+  async getAllDescriptions(): Promise<string[]> {
+    await this.paginator.changeItemsPerPage(50);
+    const all: string[] = [];
+    while (true) {
+      const pageValues = await this.table.getAllColumnValues(1);
+      all.push(...pageValues.filter(v => v.length > 0));
+      if (await this.paginator.isLastPage()) break;
+      await this.paginator.clickNextPage();
+      await this.page.locator('table tbody tr').first().waitFor({ state: 'visible' });
+    }
+    return all;
   }
 
   // ─── Shared helpers ──────────────────────────────────────────────────────────
@@ -162,7 +176,7 @@ export class CounterpartyTypePage extends BasePage {
   async openAddModal(): Promise<void> {
     const addIconButton = await this.getAddIconButton();
     await addIconButton.click();
-    await expect(this.page.getByText('New Counterparty Type', { exact: true })).toBeVisible();
+    await expect(this.addInModalButton).toBeVisible();
   }
 
   async closeOpenModal(): Promise<void> {
@@ -174,10 +188,18 @@ export class CounterpartyTypePage extends BasePage {
   }
 
   async verifyAddModalOpen(): Promise<void> {
-    await expect(this.page.getByText('New Counterparty Type', { exact: true })).toBeVisible();
+    await expect(this.addInModalButton).toBeVisible();
   }
 
-  async deleteCounterpartyType(code: string): Promise<void> {
+  async addBranchType(code: string, description: string): Promise<void> {
+    await this.openAddModal();
+    await this.codeInput.fill(code);
+    await this.descriptionInput.fill(description);
+    await this.addInModalButton.click();
+    await expect(this.addInModalButton).toBeHidden();
+  }
+
+  async deleteBranchType(code: string): Promise<void> {
     await this.table.clickRowAction(code, 'ph-trash');
     await expect(this.page.getByText('Confirm Delete', { exact: true })).toBeVisible();
     await this.confirmDeleteYesButton.click();
@@ -217,9 +239,9 @@ export class CounterpartyTypePage extends BasePage {
 
   private async getAddIconButton(): Promise<Locator> {
     const headingActionButtons = this.page
-      .getByRole('heading', { name: /counterparty type/i })
+      .getByRole('heading', { name: /branch type/i })
       .locator('..')
-      .getByRole('button');
+      .locator('button:not(.export-pdf):not(.export-excel)');
     const headingAddIcon = headingActionButtons.last();
     if (await headingAddIcon.isVisible().catch(() => false) && await headingAddIcon.isEnabled().catch(() => false)) {
       return headingAddIcon;

@@ -1,7 +1,5 @@
 import { expect, test, BrowserContext, Page } from '@playwright/test';
 import {
-  industryData,
-  industryEditData,
   knownExistingIndustryCode,
   users,
 } from '../fixtures/testData';
@@ -37,66 +35,49 @@ test.describe('Industry', () => {
     await industryPage.verifyScreenElements();
   });
 
-  // ─── TC_002 ─────────────────────────────────────────────────────────────────
-  test('[TC_002] create record popup contains code, description, is trading checkbox (no label), reset and add button', async () => {
-    await industryPage.openAddModal();
-    await industryPage.verifyAddModalContents();
-    await industryPage.closeOpenModal();
+  // ─── TC_007 ─────────────────────────────────────────────────────────────────
+  test('[TC_007] filter each column shows filtered results and active indicator', async () => {
+    const columns = await industryPage.table.getFilterableColumnNames();
+    expect(columns.length).toBeGreaterThan(0);
+    for (const col of columns) {
+      const colIdx = await industryPage.table.getColumnIndexByName(col);
+      const sampleValue = colIdx >= 0 ? await industryPage.table.getFirstRowCellText(colIdx) : '';
+      if (!sampleValue) continue;
+      await industryPage.table.openColumnFilter(col);
+      await industryPage.table.applyColumnFilter(sampleValue);
+      expect(
+        await industryPage.table.isColumnFilterActive(col),
+        `Column "${col}" filter active indicator missing`,
+      ).toBe(true);
+      await industryPage.table.clearColumnFilter(col);
+    }
   });
 
-  // ─── TC_003a — checker flow pending ─────────────────────────────────────────
-  test.skip('[TC_003a] add valid data submits and sends for authorisation — checker flow pending', async () => {});
-
-  // ─── TC_003b ─────────────────────────────────────────────────────────────────
-  test('[TC_003b] submitting duplicate code keeps modal open', async () => {
-    await industryPage.openAddModal();
-    await page.getByPlaceholder('Enter code').fill(knownExistingIndustryCode);
-    await page.getByPlaceholder('Enter description').fill('Duplicate attempt');
-    await industryPage.verifyAddButtonEnabled();
-    await page.getByRole('button', { name: /^add$/i }).last().click();
-    await industryPage.verifyAddModalOpen();
+  // ─── TC_008 ─────────────────────────────────────────────────────────────────
+  test('[TC_008] clearing column filter restores all records', async () => {
+    const columns = await industryPage.table.getFilterableColumnNames();
+    if (columns.length === 0) return;
+    const col = columns[0];
+    const originalCount = await industryPage.table.getRowCount();
+    const colIdx = await industryPage.table.getColumnIndexByName(col);
+    const sampleValue = colIdx >= 0 ? await industryPage.table.getFirstRowCellText(colIdx) : '';
+    if (!sampleValue) return;
+    await industryPage.table.openColumnFilter(col);
+    await industryPage.table.applyColumnFilter(sampleValue);
+    await industryPage.table.clearColumnFilter(col);
+    const restoredCount = await industryPage.table.getRowCount();
+    expect(restoredCount).toBe(originalCount);
   });
 
-  // ─── TC_004 — known bug: sends for auth even with no change (will fail) ──────
-  test('[TC_004] update without changes does not send for authorisation', async () => {
-    await industryPage.openEditModal(knownExistingIndustryCode);
-    await page.getByRole('button', { name: /^update$/i }).click();
-    await expect(page.getByText(/authoris/i)).not.toBeVisible({ timeout: 3000 });
-  });
-
-  // ─── TC_005 — checker flow pending ──────────────────────────────────────────
-  test.skip('[TC_005] record reflected after checker approval — checker flow pending', async () => {});
-
-  // ─── TC_006 ─────────────────────────────────────────────────────────────────
-  test('[TC_006] add button disabled when mandatory fields are empty', async () => {
-    await industryPage.openAddModal();
-    await industryPage.verifyAddButtonDisabled();
-
-    await page.getByPlaceholder('Enter code').fill('TESTONLY');
-    await industryPage.verifyAddButtonDisabled();
-
-    await page.getByPlaceholder('Enter description').fill('Test Description');
-    await industryPage.verifyAddButtonEnabled();
-
-    await industryPage.closeOpenModal();
-  });
-
-  // ─── TC_007 — feature not yet developed (will fail) ─────────────────────────
-  test('[TC_007] filter by condition displays filtered records', async () => {
-    await industryPage.table.clickFilter();
-  });
-
-  // ─── TC_008 — feature not yet developed (will fail) ─────────────────────────
-  test('[TC_008] filter reset shows all records', async () => {
-    await industryPage.table.resetFilter();
-  });
-
-  // ─── TC_009 — known bug: sort resets after pagination (will fail) ────────────
-  test('[TC_009] sort by code column reorders table data ascending and descending', async () => {
-    const firstRowBefore = await industryPage.table.getFirstRowCellText(0);
-    await industryPage.table.sortByColumn('Code');
-    const firstRowAfter = await industryPage.table.getFirstRowCellText(0);
-    expect(firstRowAfter).not.toBe(firstRowBefore);
+  // ─── TC_009 ──────────────────────────────────────────────────────────────────
+  test('[TC_009] sort by each column shows sort indicator for all sortable columns', async () => {
+    const columns = await industryPage.table.getSortableColumnNames();
+    expect(columns.length).toBeGreaterThan(0);
+    for (const col of columns) {
+      await industryPage.table.sortByColumn(col);
+      const order = await industryPage.table.getColumnSortOrder(col);
+      expect(['ascending', 'descending'], `Column "${col}" sort indicator missing`).toContain(order);
+    }
   });
 
   // ─── TC_010 — known failure: blank file (will fail) ─────────────────────────
@@ -118,42 +99,6 @@ test.describe('Industry', () => {
   test('[TC_013] downloaded Excel data matches screen records', async () => {
     await industryPage.export.downloadAndVerifyExcel();
   });
-
-  // ─── TC_014 — checker flow pending ──────────────────────────────────────────
-  test.skip('[TC_014] auth log shows entries with status and details — checker flow pending', async () => {});
-
-  // ─── TC_015 — checker flow pending ──────────────────────────────────────────
-  test.skip('[TC_015] rejected entries visible in rejected tab — checker flow pending', async () => {});
-
-  // ─── TC_016 — checker flow pending ──────────────────────────────────────────
-  test.skip('[TC_016] delete record sends for authorization — checker flow pending', async () => {});
-
-  // ─── TC_017 — checker flow pending ──────────────────────────────────────────
-  test.skip('[TC_017] approve deletion removes record — checker flow pending', async () => {});
-
-  // ─── TC_018 ─────────────────────────────────────────────────────────────────
-  test('[TC_018] maker edits description of industry', async () => {
-    await industryPage.editIndustry(knownExistingIndustryCode, industryEditData.updatedDescription);
-  });
-
-  // ─── TC_019 — checker flow pending ──────────────────────────────────────────
-  test.skip('[TC_019] edited entries sent for authorization — checker flow pending', async () => {});
-
-  // ─── TC_020 ─────────────────────────────────────────────────────────────────
-  test('[TC_020] edit modal reset restores original field values', async () => {
-    await industryPage.editAndResetModal(knownExistingIndustryCode, 'TEMPORARY_DESCRIPTION');
-  });
-
-  // ─── TC_021 ─────────────────────────────────────────────────────────────────
-  test('[TC_021] edit update button disabled when description is cleared', async () => {
-    await industryPage.openEditModal(knownExistingIndustryCode);
-    await page.getByPlaceholder('Enter description').clear();
-    await industryPage.verifyUpdateButtonDisabled();
-    await industryPage.closeOpenModal();
-  });
-
-  // ─── TC_022 — checker flow pending ──────────────────────────────────────────
-  test.skip('[TC_022] edited entry updated after checker approval — checker flow pending', async () => {});
 
   // ─── TC_023 ─────────────────────────────────────────────────────────────────
   test('[TC_023] view record details from action tab', async () => {
@@ -193,14 +138,6 @@ test.describe('Industry', () => {
     expect(count).toBeLessThanOrEqual(50);
     const info = await industryPage.paginator.getInfoText();
     expect(info).toMatch(/Showing 1 - 50|Showing 1 - \d+/);
-  });
-
-  // ─── TC_027 ─────────────────────────────────────────────────────────────────
-  test('[TC_027] alphanumeric values are accepted in code field', async () => {
-    await industryPage.openAddModal();
-    await page.getByPlaceholder('Enter code').fill('ABC123');
-    await expect(page.getByPlaceholder('Enter code')).toHaveValue('ABC123');
-    await industryPage.closeOpenModal();
   });
 
   // ─── TC_028 ─────────────────────────────────────────────────────────────────

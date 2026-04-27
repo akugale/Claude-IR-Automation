@@ -59,3 +59,38 @@ export const subIndustryEditData = {
 };
 
 export const knownExistingSubIndustryCode = '01';
+
+export const branchTypeData = {
+  code: `BT${suffix}`,
+  description: `Branch Type ${new Date(ts).toISOString()}`,
+};
+
+export const branchTypeEditData = {
+  code: `BE${suffix}`,
+  description: `Branch Type Edit ${new Date(ts).toISOString()}`,
+  updatedDescription: `Branch Type Updated ${new Date(ts).toISOString()}`,
+};
+
+export const knownExistingBranchTypeCode = 'HO';
+
+export const branchData = {
+  code: `BR${suffix}`,
+  description: `Branch ${new Date(ts).toISOString()}`,
+  branchType: 'Head Office',
+  parentBranch: 'HO',
+  country: 'India',
+  province: 'Central',
+  currency: 'Indian Rupee',
+};
+
+export const branchEditData = {
+  code: `BRE${suffix}`,
+  description: `Branch Edit ${new Date(ts).toISOString()}`,
+  updatedDescription: `Branch Updated ${new Date(ts).toISOString()}`,
+};
+
+export const knownExistingBranchCode = 'HO';
+
+export const knownViewableBranchCode = 'G';
+
+export const knownEditableBranchCode = '16';
