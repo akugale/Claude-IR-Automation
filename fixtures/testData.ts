@@ -94,3 +94,18 @@ export const knownExistingBranchCode = 'HO';
 export const knownViewableBranchCode = 'G';
 
 export const knownEditableBranchCode = '16';
+
+export const ratingTypeData = {
+  code: `RT${suffix}`,
+  description: `Model Type ${new Date(ts).toISOString()}`,
+  investmentGradeCutoffRank: '5',
+  scaleModel: false,
+  scaleType: '2',
+};
+
+export const ratingTypeEditData = {
+  updatedDescription: `Model Type Updated ${new Date(ts).toISOString()}`,
+};
+
+export const knownExistingRatingTypeCode = 'CRF';
+export const knownViewableRatingTypeCode = 'NBFC';
