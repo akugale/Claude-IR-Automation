@@ -109,3 +109,57 @@ export const ratingTypeEditData = {
 
 export const knownExistingRatingTypeCode = 'CRF';
 export const knownViewableRatingTypeCode = 'NBFC';
+
+export const ratingParameterData = {
+  code: `RP${suffix}`,
+  description: `Rating Parameter ${new Date(ts).toISOString()}`,
+  modelType: 'NBFC/HFC',
+  riskCategory: 'DEFAULT',
+  dataType: 'Numeric',
+  parameterType: 'Financial',
+};
+
+export const ratingParameterCustomMasterData = {
+  code: `CM${suffix}`,
+  description: `RP Custom Master ${new Date(ts).toISOString()}`,
+  modelType: 'NBFC/HFC',
+  riskCategory: 'DEFAULT',
+  dataType: 'Custom Master',
+  parameterType: 'Financial',
+};
+
+export const ratingParameterSystemMasterData = {
+  code: `SM${suffix}`,
+  description: `RP System Master ${new Date(ts).toISOString()}`,
+  modelType: 'NBFC/HFC',
+  riskCategory: 'DEFAULT',
+  dataType: 'System Master',
+  parameterType: 'Financial',
+};
+
+export const ratingParameterOptionData = {
+  code: `RPO${suffix}`,
+  description: `RP Option ${new Date(ts).toISOString()}`,
+  modelType: 'NBFC/HFC',
+  riskCategory: 'DEFAULT',
+  dataType: 'Option',
+  parameterType: 'Financial',
+  optionsAlphanumeric: 'ABC123',
+  optionsNegative: '-100',
+};
+
+export const ratingParameterEditData = {
+  updatedDescription: `Rating Parameter Updated ${new Date(ts).toISOString()}`,
+};
+
+export const knownExistingRatingParameterCode = '5YCAGR';
+export const knownViewableRatingParameterCode = 'Ability to raise capital';
+
+// ─── Rating Scale ─────────────────────────────────────────────────────────────
+// First-page visible record (Model Type column). "CoRF Item Group Rating" is always row 1.
+export const knownViewableRatingScaleRatingType = 'CoRF Item Group Rating';
+
+export const ratingScaleEditData = {
+  updatedLabel: `Label ${suffix}`,
+  updatedDescription: `Rating Scale Updated ${new Date(ts).toISOString()}`,
+};
