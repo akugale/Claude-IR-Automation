@@ -5,6 +5,12 @@ import {
 } from '../fixtures/testData';
 import { IndustryPage } from '../pages/IndustryPage';
 import { LoginPage } from '../pages/LoginPage';
+import {
+  verifySortDataOrder,
+  verifySortPaginationCompatibility,
+  verifyExportPdfAllRecords,
+  verifyExportExcelAllRecords,
+} from './helpers/commonScreenTests';
 
 const baseURL = process.env.BASE_URL ?? 'http://localhost:3000';
 
@@ -80,24 +86,32 @@ test.describe('Industry', () => {
     }
   });
 
-  // ─── TC_010 — known failure: blank file (will fail) ─────────────────────────
+  test('[TC_009b] sort data is correctly ordered ascending then descending', async () => {
+    await verifySortDataOrder(industryPage.table);
+  });
+
+  test('[TC_009c] sorting from page 2 keeps user on page 2 (not reset to page 1)', async () => {
+    await verifySortPaginationCompatibility(industryPage.table, industryPage.paginator);
+  });
+
+  // ─── TC_010 ─────────────────────────────────────────────────────────────────
   test('[TC_010] export PDF downloads file', async () => {
     await industryPage.export.triggerPdf();
   });
 
-  // ─── TC_011 — known failure: blank file (will fail) ─────────────────────────
+  // ─── TC_011 ─────────────────────────────────────────────────────────────────
   test('[TC_011] export Excel downloads file', async () => {
     await industryPage.export.triggerExcel();
   });
 
-  // ─── TC_012 — blocked by TC_010 (will fail) ──────────────────────────────────
-  test('[TC_012] downloaded PDF data matches screen records', async () => {
-    await industryPage.export.downloadAndVerifyPdf();
+  // ─── TC_012 ─────────────────────────────────────────────────────────────────
+  test('[TC_012] downloaded PDF contains all records (not just current page)', async () => {
+    await verifyExportPdfAllRecords(industryPage.export, industryPage.paginator);
   });
 
-  // ─── TC_013 — blocked by TC_011 (will fail) ──────────────────────────────────
-  test('[TC_013] downloaded Excel data matches screen records', async () => {
-    await industryPage.export.downloadAndVerifyExcel();
+  // ─── TC_013 ─────────────────────────────────────────────────────────────────
+  test('[TC_013] downloaded Excel contains all records (not just current page)', async () => {
+    await verifyExportExcelAllRecords(industryPage.export, industryPage.paginator);
   });
 
   // ─── TC_023 ─────────────────────────────────────────────────────────────────

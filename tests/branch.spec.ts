@@ -10,6 +10,12 @@ import {
 import { BranchPage } from '../pages/BranchPage';
 import { BranchTypePage } from '../pages/BranchTypePage';
 import { LoginPage } from '../pages/LoginPage';
+import {
+  verifySortDataOrder,
+  verifySortPaginationCompatibility,
+  verifyExportPdfAllRecords,
+  verifyExportExcelAllRecords,
+} from './helpers/commonScreenTests';
 
 const baseURL = process.env.BASE_URL ?? 'http://localhost:3000';
 
@@ -152,24 +158,32 @@ test.describe('Branch', () => {
     }
   });
 
-  // ─── TC_012 — known failure: blank file (will fail) ─────────────────────────
+  test('[TC_011b] sort data is correctly ordered ascending then descending', async () => {
+    await verifySortDataOrder(branchPage.table);
+  });
+
+  test('[TC_011c] sorting from page 2 keeps user on page 2 (not reset to page 1)', async () => {
+    await verifySortPaginationCompatibility(branchPage.table, branchPage.paginator);
+  });
+
+  // ─── TC_012 ─────────────────────────────────────────────────────────────────
   test('[TC_012] export PDF downloads file', async () => {
     await branchPage.export.triggerPdf();
   });
 
-  // ─── TC_013 — known failure: blank file (will fail) ─────────────────────────
+  // ─── TC_013 ─────────────────────────────────────────────────────────────────
   test('[TC_013] export Excel downloads file', async () => {
     await branchPage.export.triggerExcel();
   });
 
-  // ─── TC_014 — blocked by TC_012 (will fail) ─────────────────────────────────
-  test('[TC_014] downloaded PDF data matches screen records', async () => {
-    await branchPage.export.downloadAndVerifyPdf();
+  // ─── TC_014 ─────────────────────────────────────────────────────────────────
+  test('[TC_014] downloaded PDF contains all records (not just current page)', async () => {
+    await verifyExportPdfAllRecords(branchPage.export, branchPage.paginator);
   });
 
-  // ─── TC_015 — blocked by TC_013 (will fail) ─────────────────────────────────
-  test('[TC_015] downloaded Excel data matches screen records', async () => {
-    await branchPage.export.downloadAndVerifyExcel();
+  // ─── TC_015 ─────────────────────────────────────────────────────────────────
+  test('[TC_015] downloaded Excel contains all records (not just current page)', async () => {
+    await verifyExportExcelAllRecords(branchPage.export, branchPage.paginator);
   });
 
   // ─── TC_016 — checker flow pending ──────────────────────────────────────────

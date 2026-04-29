@@ -109,3 +109,15 @@ export const ratingTypeEditData = {
 
 export const knownExistingRatingTypeCode = 'CRF';
 export const knownViewableRatingTypeCode = 'NBFC';
+
+// ─── Risk Categories Group ────────────────────────────────────────────────────
+export const riskCategoriesGroupData = {
+  code: `RCG${suffix}`,
+  description: `Risk Cat Group ${new Date(ts).toISOString()}`,
+};
+
+export const riskCategoriesGroupEditData = {
+  updatedDescription: `Risk Cat Group Updated ${new Date(ts).toISOString()}`,
+};
+
+export const knownExistingRiskCategoriesGroupCode = 'LRD';

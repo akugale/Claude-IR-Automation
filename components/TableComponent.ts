@@ -148,6 +148,14 @@ export class TableComponent {
     return texts.map(t => t.trim()).filter(t => t.length > 0);
   }
 
+  // Returns visible cell text for the named column (for sort data-order verification)
+  async getVisibleColumnValues(columnHeader: string, limit = 15): Promise<string[]> {
+    const colIdx = await this.getColumnIndexByName(columnHeader);
+    if (colIdx < 0) return [];
+    const cells = await this.table.locator(`tbody tr td:nth-child(${colIdx + 1})`).allInnerTexts();
+    return cells.slice(0, limit).map(v => v.trim()).filter(v => v.length > 0);
+  }
+
   async getAllColumnValues(cellIndex: number): Promise<string[]> {
     return this.table.locator('tbody tr').evaluateAll(
       (rows, idx) => rows.map(r => (r.querySelectorAll('td')[idx] as HTMLElement)?.innerText?.trim() ?? ''),

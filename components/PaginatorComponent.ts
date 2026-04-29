@@ -32,6 +32,13 @@ export class PaginatorComponent {
     return this.page.locator('.p-paginator-current').innerText();
   }
 
+  async getTotalRecords(): Promise<number> {
+    const text = await this.getInfoText();
+    const match = text.match(/of\s+([\d,]+)/i);
+    if (!match) return 0;
+    return parseInt(match[1].replace(/,/g, ''), 10);
+  }
+
   async getActivePageNumber(): Promise<string> {
     return this.page.locator('.p-paginator-page-selected').innerText();
   }

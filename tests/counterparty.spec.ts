@@ -2,6 +2,12 @@ import { expect, test, BrowserContext, Page } from '@playwright/test';
 import { users } from '../fixtures/testData';
 import { CounterpartyTypePage } from '../pages/CounterpartyTypePage';
 import { LoginPage } from '../pages/LoginPage';
+import {
+  verifySortDataOrder,
+  verifySortPaginationCompatibility,
+  verifyExportPdfAllRecords,
+  verifyExportExcelAllRecords,
+} from './helpers/commonScreenTests';
 
 const baseURL = process.env.BASE_URL ?? 'http://localhost:3000';
 
@@ -77,24 +83,32 @@ test.describe('Counterparty Type', () => {
     }
   });
 
-  // ─── TC_012 — known failure: blank file (will fail) ─────────────────────────
+  test('[TC_011b] sort data is correctly ordered ascending then descending', async () => {
+    await verifySortDataOrder(counterpartyTypePage.table);
+  });
+
+  test('[TC_011c] sorting from page 2 keeps user on page 2 (not reset to page 1)', async () => {
+    await verifySortPaginationCompatibility(counterpartyTypePage.table, counterpartyTypePage.paginator);
+  });
+
+  // ─── TC_012 ─────────────────────────────────────────────────────────────────
   test('[TC_012] export PDF downloads file', async () => {
     await counterpartyTypePage.export.triggerPdf();
   });
 
-  // ─── TC_013 — known failure: blank file (will fail) ─────────────────────────
+  // ─── TC_013 ─────────────────────────────────────────────────────────────────
   test('[TC_013] export Excel downloads file', async () => {
     await counterpartyTypePage.export.triggerExcel();
   });
 
-  // ─── TC_014 — blocked by TC_012 (will fail) ─────────────────────────────────
-  test('[TC_014] downloaded PDF data matches screen records', async () => {
-    await counterpartyTypePage.export.downloadAndVerifyPdf();
+  // ─── TC_014 ─────────────────────────────────────────────────────────────────
+  test('[TC_014] downloaded PDF contains all records (not just current page)', async () => {
+    await verifyExportPdfAllRecords(counterpartyTypePage.export, counterpartyTypePage.paginator);
   });
 
-  // ─── TC_015 — blocked by TC_013 (will fail) ─────────────────────────────────
-  test('[TC_015] downloaded Excel data matches screen records', async () => {
-    await counterpartyTypePage.export.downloadAndVerifyExcel();
+  // ─── TC_015 ─────────────────────────────────────────────────────────────────
+  test('[TC_015] downloaded Excel contains all records (not just current page)', async () => {
+    await verifyExportExcelAllRecords(counterpartyTypePage.export, counterpartyTypePage.paginator);
   });
 
   // ─── TC_025 ─────────────────────────────────────────────────────────────────
