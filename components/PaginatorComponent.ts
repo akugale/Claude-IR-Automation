@@ -32,6 +32,14 @@ export class PaginatorComponent {
     return this.page.locator('.p-paginator-current').innerText();
   }
 
+  // Parses total record count from pagination info text e.g. "Showing 1-10 of 157"
+  async getTotalRecords(): Promise<number> {
+    const text = await this.getInfoText();
+    const match = text.match(/of\s+([\d,]+)/i);
+    if (!match) return 0;
+    return parseInt(match[1].replace(/,/g, ''), 10);
+  }
+
   async getActivePageNumber(): Promise<string> {
     return this.page.locator('.p-paginator-page-selected').innerText();
   }
@@ -39,9 +47,13 @@ export class PaginatorComponent {
   // ─── Page navigation ─────────────────────────────────────────────────────────
 
   async clickPageNumber(pageNum: number): Promise<void> {
-    const btn = this.page.locator(`button[aria-label="${pageNum}"].p-paginator-page`);
-    await btn.scrollIntoViewIfNeeded();
-    await btn.click();
+    // PrimeNG v18 page buttons may be hidden (display:none) in condensed layout.
+    // Use evaluate/dispatchEvent to bypass Playwright visibility checks entirely.
+    const pageButton = this.page
+      .locator(`[data-pc-section="page"][aria-label="${pageNum}"]`)
+      .first();
+    await pageButton.waitFor({ state: 'attached', timeout: 5000 });
+    await pageButton.evaluate((el) => (el as HTMLElement).click());
   }
 
   async clickFirstPage(): Promise<void> {
