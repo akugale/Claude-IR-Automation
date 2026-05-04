@@ -2,6 +2,12 @@ import { expect, test, BrowserContext, Page } from '@playwright/test';
 import { users } from '../fixtures/testData';
 import { CustomerDefaulterPage } from '../pages/CustomerDefaulterPage';
 import { LoginPage } from '../pages/LoginPage';
+import {
+  verifySortDataOrder,
+  verifySortPaginationCompatibility,
+  verifyExportPdfAllRecords,
+  verifyExportExcelAllRecords,
+} from './helpers/commonScreenTests';
 
 const baseURL = process.env.BASE_URL ?? 'http://localhost:3000';
 
@@ -61,41 +67,51 @@ test.describe('Customer Defaulter', () => {
     }
   });
 
-  // ─── TC_010 — known failure: blank file (will fail) ─────────────────────────
+  // ─── TC_009b ─────────────────────────────────────────────────────────────────
+  test('[TC_009b] sorted column data is in correct asc/desc order', async () => {
+    await verifySortDataOrder(customerDefaulterPage.table);
+  });
+
+  // ─── TC_009c ─────────────────────────────────────────────────────────────────
+  test('[TC_009c] sorting keeps current pagination page unchanged', async () => {
+    await verifySortPaginationCompatibility(customerDefaulterPage.table, customerDefaulterPage.paginator);
+  });
+
+  // ─── TC_010 ──────────────────────────────────────────────────────────────────
   test('[TC_010] export PDF downloads file', async () => {
     await customerDefaulterPage.export.triggerPdf();
   });
 
-  // ─── TC_011 — known failure: blank file (will fail) ─────────────────────────
+  // ─── TC_011 ──────────────────────────────────────────────────────────────────
   test('[TC_011] export Excel downloads file', async () => {
     await customerDefaulterPage.export.triggerExcel();
   });
 
-  // ─── TC_012 — blocked by TC_010 (will fail) ──────────────────────────────────
-  test('[TC_012] downloaded PDF data matches screen records', async () => {
-    await customerDefaulterPage.export.downloadAndVerifyPdf();
+  // ─── TC_012 ──────────────────────────────────────────────────────────────────
+  test('[TC_012] exported PDF contains all records (not just current page)', async () => {
+    await verifyExportPdfAllRecords(customerDefaulterPage.export, customerDefaulterPage.paginator);
   });
 
-  // ─── TC_013 — blocked by TC_011 (will fail) ──────────────────────────────────
-  test('[TC_013] downloaded Excel data matches screen records', async () => {
-    await customerDefaulterPage.export.downloadAndVerifyExcel();
+  // ─── TC_013 ──────────────────────────────────────────────────────────────────
+  test('[TC_013] exported Excel contains all records (not just current page)', async () => {
+    await verifyExportExcelAllRecords(customerDefaulterPage.export, customerDefaulterPage.paginator);
   });
 
   // ─── TC_025 ─────────────────────────────────────────────────────────────────
-  test('[TC_025a] default items per page should be 20', async () => {
+  test('[TC_025a] default items per page should be 10', async () => {
     const defaultValue = await customerDefaulterPage.paginator.getItemsPerPageValue();
-    expect(defaultValue.trim()).toBe('20');
+    expect(defaultValue.trim()).toBe('10');
   });
 
-  test('[TC_025b] items per page dropdown has expected options', async () => {
+  test('[TC_025b] items per page dropdown has options 10, 20 and 50', async () => {
     const options = await customerDefaulterPage.paginator.getItemsPerPageOptions();
-    expect(options.length).toBeGreaterThan(0);
+    expect(options).toEqual(['10', '20', '50']);
   });
 
-  test('[TC_025c] changing items per page to 50 shows all available records', async () => {
-    await customerDefaulterPage.paginator.changeItemsPerPage(50);
+  test('[TC_025c] changing items per page to 20 shows 20 records', async () => {
+    await customerDefaulterPage.paginator.changeItemsPerPage(20);
     const count = await customerDefaulterPage.table.getRowCount();
-    expect(count).toBeLessThanOrEqual(50);
+    expect(count).toBeLessThanOrEqual(20);
     const info = await customerDefaulterPage.paginator.getInfoText();
     expect(info).toMatch(/Showing 1 -/);
   });
