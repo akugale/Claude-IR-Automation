@@ -7,6 +7,12 @@ import {
 } from '../fixtures/testData';
 import { BranchTypePage } from '../pages/BranchTypePage';
 import { LoginPage } from '../pages/LoginPage';
+import {
+  verifySortDataOrder,
+  verifySortPaginationCompatibility,
+  verifyExportPdfAllRecords,
+  verifyExportExcelAllRecords,
+} from './helpers/commonScreenTests';
 
 const baseURL = process.env.BASE_URL ?? 'http://localhost:3000';
 
@@ -137,24 +143,34 @@ test.describe('Branch Type', () => {
     }
   });
 
-  // ─── TC_012 — known failure: blank file (will fail) ─────────────────────────
+  // ─── TC_011b ─────────────────────────────────────────────────────────────────
+  test('[TC_011b] sorted column data is in correct asc/desc order', async () => {
+    await verifySortDataOrder(branchTypePage.table);
+  });
+
+  // ─── TC_011c ─────────────────────────────────────────────────────────────────
+  test('[TC_011c] sorting keeps current pagination page unchanged', async () => {
+    await verifySortPaginationCompatibility(branchTypePage.table, branchTypePage.paginator);
+  });
+
+  // ─── TC_012 ──────────────────────────────────────────────────────────────────
   test('[TC_012] export PDF downloads file', async () => {
     await branchTypePage.export.triggerPdf();
   });
 
-  // ─── TC_013 — known failure: blank file (will fail) ─────────────────────────
+  // ─── TC_013 ──────────────────────────────────────────────────────────────────
   test('[TC_013] export Excel downloads file', async () => {
     await branchTypePage.export.triggerExcel();
   });
 
-  // ─── TC_014 — blocked by TC_012 (will fail) ─────────────────────────────────
-  test('[TC_014] downloaded PDF data matches screen records', async () => {
-    await branchTypePage.export.downloadAndVerifyPdf();
+  // ─── TC_014 ──────────────────────────────────────────────────────────────────
+  test('[TC_014] exported PDF contains all records (not just current page)', async () => {
+    await verifyExportPdfAllRecords(branchTypePage.export, branchTypePage.paginator);
   });
 
-  // ─── TC_015 — blocked by TC_013 (will fail) ─────────────────────────────────
-  test('[TC_015] downloaded Excel data matches screen records', async () => {
-    await branchTypePage.export.downloadAndVerifyExcel();
+  // ─── TC_015 ──────────────────────────────────────────────────────────────────
+  test('[TC_015] exported Excel contains all records (not just current page)', async () => {
+    await verifyExportExcelAllRecords(branchTypePage.export, branchTypePage.paginator);
   });
 
   // ─── TC_016 — checker flow pending ──────────────────────────────────────────
@@ -213,20 +229,20 @@ test.describe('Branch Type', () => {
   });
 
   // ─── TC_027 ─────────────────────────────────────────────────────────────────
-  test('[TC_027a] default items per page should be 20', async () => {
+  test('[TC_027a] default items per page should be 10', async () => {
     const defaultValue = await branchTypePage.paginator.getItemsPerPageValue();
-    expect(defaultValue.trim()).toBe('20');
+    expect(defaultValue.trim()).toBe('10');
   });
 
-  test('[TC_027b] items per page dropdown has expected options', async () => {
+  test('[TC_027b] items per page dropdown has options 10, 20 and 50', async () => {
     const options = await branchTypePage.paginator.getItemsPerPageOptions();
-    expect(options.length).toBeGreaterThan(0);
+    expect(options).toEqual(['10', '20', '50']);
   });
 
-  test('[TC_027c] changing items per page to 50 shows all available records', async () => {
-    await branchTypePage.paginator.changeItemsPerPage(50);
+  test('[TC_027c] changing items per page to 20 shows up to 20 records', async () => {
+    await branchTypePage.paginator.changeItemsPerPage(20);
     const count = await branchTypePage.table.getRowCount();
-    expect(count).toBeLessThanOrEqual(50);
+    expect(count).toBeLessThanOrEqual(20);
     const info = await branchTypePage.paginator.getInfoText();
     expect(info).toMatch(/Showing 1 -/);
   });

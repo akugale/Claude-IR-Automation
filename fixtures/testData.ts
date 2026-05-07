@@ -155,6 +155,63 @@ export const ratingParameterEditData = {
 export const knownExistingRatingParameterCode = '5YCAGR';
 export const knownViewableRatingParameterCode = 'Ability to raise capital';
 
+// ─── Industry Median (Industry Parameter) ────────────────────────────────────
+
+export const industryMedianData = {
+  financialYear: `${suffix}`,
+  asOnDate: '31/03/2024',
+  pbidtMargin: '5.5',
+  operatingCycle: '60',
+  currentRatio: '1.2',
+};
+
+export const industryMedianEditData = {
+  updatedFinancialYear: `${suffix}U`,
+};
+
+export const knownExistingIndustryMedianIndustry = '66';
+
+// ─── Rating Attribute Mapping ─────────────────────────────────────────────────
+
+export const ratingAttributeMappingData = {
+  attributeId: '9999',
+  dataType: `DT${suffix}`,
+};
+
+export const ratingAttributeMappingEditData = {
+  updatedDataType: `DT Updated ${suffix}`,
+};
+
+export const knownExistingRatingAttributeMappingParam = 'PBILTDM';
+
+// ─── Risk Categories Group ────────────────────────────────────────────────────
+
+export const riskCategoriesGroupData = {
+  code: `RCG${suffix}`,
+  description: `Risk Cat Group ${new Date(ts).toISOString()}`,
+};
+
+export const riskCategoriesGroupEditData = {
+  updatedDescription: `Risk Cat Group Updated ${new Date(ts).toISOString()}`,
+};
+
+export const knownExistingRiskCategoriesGroupCode = 'LRD';
+
+// ─── Risk Category ────────────────────────────────────────────────────────────
+
+export const riskCategoryData = {
+  code: `RC${suffix}`,
+  description: `Risk Category ${new Date(ts).toISOString()}`,
+  companyScore: 'Yes',
+  notching: 'No',
+};
+
+export const riskCategoryEditData = {
+  updatedDescription: `Risk Category Updated ${new Date(ts).toISOString()}`,
+};
+
+export const knownExistingRiskCategoryCode = 'BUS';
+
 // ─── Rating Scale ─────────────────────────────────────────────────────────────
 // First-page visible record (Model Type column). "CoRF Item Group Rating" is always row 1.
 export const knownViewableRatingScaleRatingType = 'CoRF Item Group Rating';
@@ -163,3 +220,32 @@ export const ratingScaleEditData = {
   updatedLabel: `Label ${suffix}`,
   updatedDescription: `Rating Scale Updated ${new Date(ts).toISOString()}`,
 };
+
+// ─── Rating Correction ────────────────────────────────────────────────────────
+
+export const ratingCorrectionData = {
+  parameter: `RC Param ${suffix}`,
+  criteria: `RC Criteria ${new Date(ts).toISOString()}`,
+};
+
+export const ratingCorrectionEditData = {
+  updatedCriteria: `RC Criteria Updated ${new Date(ts).toISOString()}`,
+};
+
+export const knownExistingRatingCorrectionParam = 'Adverse comments from Auditors';
+
+// ─── Rating Model ─────────────────────────────────────────────────────────────
+
+export const ratingModelData = {
+  name: `RM ${suffix}`,
+  effectiveDate: '01 Jan 2027',
+  modelType: 'NBFC/HFC',
+  riskCategory: 'Business Risk',
+};
+
+export const ratingModelEditData = {
+  updatedName: `RM Updated ${suffix}`,
+};
+
+export const knownExistingRatingModelName = 'Banking';
+export const knownViewableRatingModelName  = 'Banking copy';
