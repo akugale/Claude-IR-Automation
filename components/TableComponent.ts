@@ -123,26 +123,42 @@ export class TableComponent {
   }
 
   async isColumnFilterActive(columnName: string): Promise<boolean> {
-    const btn = this.page
+    const th = this.page
       .locator('th')
       .filter({ hasText: new RegExp(columnName, 'i') })
-      .locator(this.filterBtnSelector)
       .first();
-    const cls = (await btn.getAttribute('class')) ?? '';
-    return cls.includes('active') || cls.includes('p-highlight');
+    const btn = th.locator(this.filterBtnSelector).first();
+    const btnCls  = (await btn.getAttribute('class')        .catch(() => '')) ?? '';
+    const btnData = (await btn.getAttribute('data-p-active').catch(() => '')) ?? '';
+    const thCls   = (await th.getAttribute('class')         .catch(() => '')) ?? '';
+    return (
+      btnCls.includes('active') ||
+      btnCls.includes('p-highlight') ||
+      btnData === 'true' ||
+      thCls.includes('p-filter-column') ||
+      thCls.includes('active')
+    );
   }
 
   async clearColumnFilter(columnName: string): Promise<void> {
+    // Single click to open overlay — do NOT call openColumnFilter again (double-click closes it)
     await this.page
       .locator('th')
       .filter({ hasText: new RegExp(columnName, 'i') })
       .locator(this.filterBtnSelector)
       .first()
       .click();
-    await this.openColumnFilter(columnName).catch(() => {});
+    const appeared = await this.page
+      .locator(this.filterOverlaySelector)
+      .first()
+      .waitFor({ state: 'visible', timeout: 5000 })
+      .then(() => true).catch(() => false);
+    if (!appeared) {
+      await this.page.locator('p-columnfilterformelement').waitFor({ state: 'visible', timeout: 5000 }).catch(() => {});
+    }
     const overlay = await this.getFilterOverlay();
     const clearBtn = overlay.getByRole('button', { name: /clear/i });
-    if (await clearBtn.isVisible()) {
+    if (await clearBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
       await clearBtn.click();
     } else {
       const filterInput = overlay
@@ -234,5 +250,12 @@ export class TableComponent {
     const row = this.table.locator('tbody tr').filter({ hasText: rowText }).first();
     await expect(row).toBeVisible();
     await row.getByRole('button', { name: actionLabel }).click();
+  }
+
+  async clickRowActionByRowText(rowText: string, iconClass: string): Promise<void> {
+    await this.search(rowText);
+    const row = this.table.locator('tbody tr').filter({ hasText: rowText }).first();
+    await expect(row).toBeVisible();
+    await row.locator(`button:has(.${iconClass})`).click();
   }
 }

@@ -233,3 +233,19 @@ export const ratingCorrectionEditData = {
 };
 
 export const knownExistingRatingCorrectionParam = 'Adverse comments from Auditors';
+
+// ─── Rating Model ─────────────────────────────────────────────────────────────
+
+export const ratingModelData = {
+  name: `RM ${suffix}`,
+  effectiveDate: '01 Jan 2027',
+  modelType: 'NBFC/HFC',
+  riskCategory: 'Business Risk',
+};
+
+export const ratingModelEditData = {
+  updatedName: `RM Updated ${suffix}`,
+};
+
+export const knownExistingRatingModelName = 'Banking';
+export const knownViewableRatingModelName  = 'Banking copy';

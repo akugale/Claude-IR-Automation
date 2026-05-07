@@ -21,6 +21,7 @@
     "test:ratingattributemapping": "npm run clean && playwright test tests/ratingattributemapping.spec.ts",
     "test:industrymedian": "npm run clean && playwright test tests/industrymedian.spec.ts",
     "test:ratingcorrection": "npm run clean && playwright test tests/ratingcorrection.spec.ts",
+    "test:ratingmodel": "npm run clean && playwright test tests/ratingmodel.spec.ts",
     "test:headed": "playwright test --headed",
     "test:debug": "playwright test --debug",
     "report:html": "playwright show-report reports/html",
