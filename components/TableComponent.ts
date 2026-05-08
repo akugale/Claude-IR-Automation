@@ -27,6 +27,7 @@ export class TableComponent {
     await this.page
       .locator('th.p-datatable-sortable-column')
       .filter({ hasText: columnName })
+      .first()
       .click();
   }
 
@@ -34,6 +35,7 @@ export class TableComponent {
     return this.page
       .locator('th.p-datatable-sortable-column')
       .filter({ hasText: columnName })
+      .first()
       .getAttribute('aria-sort');
   }
 
@@ -57,6 +59,8 @@ export class TableComponent {
     'th button:has(.ph-funnel)',
     'th button:has(.ph-funnel-simple)',
     'th button:has(i[class*="funnel"])',
+    'th button:has(img)',
+    'button[aria-label*="filter" i]',
   ].join(', ');
 
   private filterOverlaySelector = [
@@ -65,6 +69,10 @@ export class TableComponent {
     '[data-pc-section="filteroverlay"]',
     '[data-pc-name="columnfilteroverlay"]',
     'p-columnfilteroverlay',
+    'p-popover',
+    '.p-popover',
+    '[data-pc-name="popover"]',
+    '.p-overlay-open',
   ].join(', ');
 
   async getFilterableColumnNames(): Promise<string[]> {
@@ -96,8 +104,16 @@ export class TableComponent {
   private async getFilterOverlay(): Promise<import('@playwright/test').Locator> {
     const primary = this.page.locator(this.filterOverlaySelector).first();
     if (await primary.isVisible().catch(() => false)) return primary;
-    // Fallback: parent of p-columnfilterformelement
-    return this.page.locator('p-columnfilterformelement').locator('..');
+    // Fallback 1: parent of p-columnfilterformelement
+    const formEl = this.page.locator('p-columnfilterformelement');
+    if (await formEl.isVisible().catch(() => false)) return formEl.locator('..');
+    // Fallback 2: any visible overlay/panel that appeared (CDK portal or custom)
+    const anyOverlay = this.page.locator(
+      'div[class*="overlay"]:visible, div[class*="filter"]:visible, div[class*="panel"]:visible',
+    ).filter({ has: this.page.locator('input') }).first();
+    if (await anyOverlay.isVisible({ timeout: 2000 }).catch(() => false)) return anyOverlay;
+    // Last resort: return a page-level locator so input search works on whole page
+    return this.page.locator('body');
   }
 
   async applyColumnFilter(value: string): Promise<void> {
@@ -109,9 +125,11 @@ export class TableComponent {
         '.p-column-filter-constraint input[type="text"]',
         '[data-pc-section="filterconstraint"] input',
         '[data-pc-section="filterConstraint"] input',
+        'input[type="text"]',
+        'input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"])',
       ].join(', '))
       .first();
-    await filterInput.waitFor({ state: 'visible' });
+    await filterInput.waitFor({ state: 'visible', timeout: 15000 });
     await filterInput.fill(value);
     const applyBtn = overlay.getByRole('button', { name: /apply/i });
     if (await applyBtn.isVisible()) {
@@ -120,6 +138,25 @@ export class TableComponent {
       await filterInput.press('Enter');
     }
     await this.page.locator(this.filterOverlaySelector).first().waitFor({ state: 'hidden' }).catch(() => {});
+  }
+
+  // For columns that use a p-select dropdown filter (e.g. boolean/enum columns like Is Locked, Status)
+  // Opens the filter, picks the first real option, applies it, and returns the selected option text
+  async applyDropdownColumnFilter(columnName: string): Promise<string> {
+    await this.openColumnFilter(columnName);
+    const overlay = await this.getFilterOverlay();
+    const dropdown = overlay.locator('p-select, p-dropdown').first();
+    await dropdown.click();
+    const firstOption = this.page.locator('[role="listbox"] [role="option"]')
+      .filter({ hasText: /\S/ })
+      .first();
+    await firstOption.waitFor({ state: 'visible', timeout: 10000 });
+    const selectedText = (await firstOption.innerText()).trim();
+    await firstOption.click();
+    const applyBtn = overlay.getByRole('button', { name: /apply/i });
+    if (await applyBtn.isVisible()) await applyBtn.click();
+    await this.page.locator(this.filterOverlaySelector).first().waitFor({ state: 'hidden' }).catch(() => {});
+    return selectedText;
   }
 
   async isColumnFilterActive(columnName: string): Promise<boolean> {

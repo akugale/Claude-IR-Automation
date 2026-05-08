@@ -249,3 +249,43 @@ export const ratingModelEditData = {
 
 export const knownExistingRatingModelName = 'Banking';
 export const knownViewableRatingModelName  = 'Banking copy';
+
+// ─── User Master ──────────────────────────────────────────────────────────────
+export const knownViewableUserLoginId = 'vendor';
+
+// ─── Role Master ──────────────────────────────────────────────────────────────
+
+export const roleMasterData = {
+  code: `RL${suffix}`,
+  description: `Role ${new Date(ts).toISOString()}`,
+};
+
+export const knownViewableRoleCode = 'ANA';
+
+// Role created for User Profile active/inactive visibility tests.
+// Code is embedded in description so it can be found by code search in dropdowns.
+export const userProfileActiveRole = {
+  code: `UPA${suffix}`,
+  description: `UPA${suffix} Active Role`,
+};
+
+export const userProfileInactiveRole = {
+  code: `UPI${suffix}`,
+  description: `UPI${suffix} Inactive Role`,
+};
+
+// ─── Role Menu Mapping ────────────────────────────────────────────────────────
+
+export const roleMenuMappingData = {
+  roleForMapping: 'ANA',    // existing approved role from Role Master
+  menuToVerify: 'Rating',   // top-level menu node — always visible without expanding tree
+};
+
+export const knownMappedRole = 'Rating Head'; // role known to already have mappings
+
+// ─── User Profile ─────────────────────────────────────────────────────────────
+
+export const vendorUser = {
+  username: process.env.VENDOR_USERNAME ?? 'vendor',
+  password: process.env.VENDOR_PASSWORD ?? 'Kalypto@2026',
+};
