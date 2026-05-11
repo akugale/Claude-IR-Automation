@@ -24,11 +24,29 @@ export class TableComponent {
   // ─── Sort ────────────────────────────────────────────────────────────────────
 
   async sortByColumn(columnName: string): Promise<void> {
-    await this.page
+    const th = this.page
       .locator('th.p-datatable-sortable-column')
       .filter({ hasText: columnName })
-      .first()
-      .click();
+      .first();
+    // p-sorticon sits left of the filter button; th.click() lands on filter button
+    // (th center overlaps filter button). Click p-sorticon directly to avoid this.
+    const sortIcon = th.locator('p-sorticon').first();
+    if (await sortIcon.count() > 0) {
+      await sortIcon.click();
+    } else {
+      // Fallback: click left side of header (20px from left = text/icon zone, not filter)
+      await th.click({ position: { x: 20, y: 10 } });
+    }
+    // Wait for aria-sort to update (async DOM re-render after click)
+    await this.page.waitForFunction(
+      (col) => {
+        const th = Array.from(document.querySelectorAll('th.p-datatable-sortable-column'))
+          .find(el => el.textContent?.includes(col));
+        return th?.getAttribute('aria-sort') !== 'none';
+      },
+      columnName,
+      { timeout: 3000 },
+    ).catch(() => {}); // if never updates, let test assertion fail with clear message
   }
 
   async getColumnSortOrder(columnName: string): Promise<string | null> {

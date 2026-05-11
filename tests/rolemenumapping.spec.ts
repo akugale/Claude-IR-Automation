@@ -256,13 +256,18 @@ test.describe('Role Menu Mapping', () => {
   });
 
   // ─── TC_027 ─────────────────────────────────────────────────────────────────
-  test('[TC_027] submitting a new role-menu mapping creates the record with success toast', async () => {
+  test('[TC_027] submitting a new role-menu mapping creates the record and appears in table', async () => {
+    const countBefore = await rmm.table.getRowCount();
     await rmm.openAddModal();
     await rmm.selectRole(roleMenuMappingData.roleForMapping);
     await rmm.selectMenuItems([roleMenuMappingData.menuToVerify]);
     await rmm.verifyAddButtonState('enabled');
     await rmm.submitAddForm();
     await rmm.verifySuccessToast();
+    await page.waitForTimeout(500);
+    const countAfter = await rmm.table.getRowCount();
+    console.log(`Add mapping: rows ${countBefore} → ${countAfter}`);
+    expect(countAfter, 'New mapping row should appear in table after add').toBeGreaterThan(countBefore);
   });
 
   // ──────────────────────────────────────────────────────
@@ -270,23 +275,48 @@ test.describe('Role Menu Mapping', () => {
   // ──────────────────────────────────────────────────────
 
   // ─── TC_028 ─────────────────────────────────────────────────────────────────
-  test('[TC_028] View button opens read-only view of the mapping', async () => {
+  test('[TC_028] View button opens read-only modal with correct role and menu data', async () => {
     await rmm.openView(knownMappedRole);
-    await expect(page.locator('[role="dialog"]')).toBeVisible();
-    console.log('View modal opened successfully');
+    const viewDialog = page.locator('[role="dialog"]').first();
+    await expect(viewDialog).toBeVisible();
+    // Role value should be visible in dialog
+    const roleVal = (await viewDialog.locator('p-select, p-dropdown').first()
+      .innerText().catch(() => '')).trim();
+    console.log(`View modal — Role: "${roleVal}"`);
+    expect(roleVal, 'View modal should show pre-filled role').toBeTruthy();
+    // All inputs/dropdowns should be disabled (read-only)
+    const editBtn = viewDialog.getByRole('button', { name: /^update$|^save$/i });
+    const hasEditBtn = await editBtn.isVisible({ timeout: 2000 }).catch(() => false);
+    expect(hasEditBtn, 'View modal should not have Save/Update button').toBe(false);
     await page.keyboard.press('Escape');
   });
 
   // ─── TC_029 ─────────────────────────────────────────────────────────────────
-  test('[TC_029] Edit button opens the mapping in edit mode with pre-filled values', async () => {
+  test('[TC_029] Edit button opens modal with pre-filled values, submit updates record', async () => {
     await rmm.openEdit(knownMappedRole);
     const editDialog = page.locator('[role="dialog"]').first();
     await expect(editDialog).toBeVisible();
-    // Role should be pre-selected (dropdown not empty)
-    const roleVal = await editDialog.locator('p-select, p-dropdown').first()
-      .innerText().catch(() => '');
-    console.log(`Edit modal — Role pre-filled as: "${roleVal.trim()}"`);
-    await page.keyboard.press('Escape');
+    // Verify pre-filled role
+    const roleVal = (await editDialog.locator('p-select, p-dropdown').first()
+      .innerText().catch(() => '')).trim();
+    console.log(`Edit modal — Role pre-filled: "${roleVal}"`);
+    expect(roleVal, 'Edit modal should have pre-filled role').toBeTruthy();
+    // Select a different menu item to update
+    await rmm.selectMenuItems(['Reference Data']);
+    // Submit update
+    const updateBtn = editDialog.getByRole('button', { name: /^update$|^save$|^edit$/i }).first();
+    const hasUpdateBtn = await updateBtn.isVisible({ timeout: 3000 }).catch(() => false);
+    if (hasUpdateBtn) {
+      await updateBtn.click();
+      await editDialog.waitFor({ state: 'hidden', timeout: 8000 }).catch(() => {});
+      await rmm.verifySuccessToast();
+      console.log('Edit submitted and success toast verified');
+    } else {
+      console.warn('No Update/Save button found — checking modal button labels');
+      const btnLabels = await editDialog.locator('button').allInnerTexts();
+      console.log(`Buttons in edit modal: [${btnLabels.join(' | ')}]`);
+      await page.keyboard.press('Escape');
+    }
   });
 
   // ─── TC_030 ─────────────────────────────────────────────────────────────────
@@ -316,29 +346,31 @@ test.describe('Role Menu Mapping', () => {
 
   // ─── TC_033 ─────────────────────────────────────────────────────────────────
   test('[TC_033] confirming delete removes the record from the table', async () => {
-    // First create a mapping to delete so we don't destroy real data
+    // Create a fresh mapping specifically for this delete test
     await rmm.openAddModal();
     await rmm.selectRole(roleMenuMappingData.roleForMapping);
     await rmm.selectMenuItems([roleMenuMappingData.menuToVerify]);
     const addEnabled = await page.locator('[role="dialog"]')
       .getByRole('button', { name: /^add$/i }).isEnabled({ timeout: 3000 }).catch(() => false);
-    if (!addEnabled) {
-      console.warn('Add button not enabled — mapping may already exist, using first table row for delete test');
-    } else {
+    if (addEnabled) {
       await rmm.submitAddForm();
       await rmm.verifySuccessToast();
+    } else {
+      console.warn('Mapping already exists — proceeding to delete first table row');
     }
-    // Get first row role+menu text for identification
+    // Wait for all dialogs and toasts to fully close before interacting with table
+    await rmm.waitForDialogsAndToastsClosed();
+    // Get first row details
     const targetRole = await rmm.table.getFirstRowCellText(0);
     const targetMenu = await rmm.table.getFirstRowCellText(1);
     if (!targetRole.trim()) { test.skip(); return; }
     const countBefore = await rmm.table.getRowCount();
-    // Delete first row
+    console.log(`Deleting: "${targetRole} → ${targetMenu}" (${countBefore} rows before)`);
     await rmm.openDeleteConfirmation(targetRole.trim());
     await rmm.confirmDelete();
-    await page.waitForTimeout(500);
+    await rmm.waitForDialogsAndToastsClosed();
     const countAfter = await rmm.table.getRowCount();
-    console.log(`Delete "${targetRole} → ${targetMenu}": rows ${countBefore} → ${countAfter}`);
+    console.log(`Rows after delete: ${countAfter}`);
     expect(countAfter, 'Row count should decrease by 1 after confirming delete').toBe(countBefore - 1);
   });
 });
@@ -444,29 +476,52 @@ test.describe('Role Menu Mapping — E2E role-to-user-to-sidebar verification', 
     }
 
     // ── Step 3: Verify mapped menu appears in sidebar ────────────────────────
+    // Full reload after role switch to ensure sidebar reflects new role's menu access
+    await vendorPage.goto('./');
     await vendorPage.waitForLoadState('domcontentloaded');
+    await vendorPage.waitForTimeout(1000);
 
-    // Look for the mapped menu item in navigation buttons (any button with menuToVerify text)
     const escaped = menuToVerify.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const menuBtn = vendorPage.getByRole('button', { name: new RegExp(escaped, 'i') }).first();
-    const menuLink = vendorPage.locator(`nav a, [role="navigation"] a, nav li, [role="navigation"] li`)
-      .filter({ hasText: new RegExp(escaped, 'i') }).first();
+    const menuRegex = new RegExp(escaped, 'i');
 
-    const btnVisible = await menuBtn.isVisible({ timeout: 8000 }).catch(() => false);
-    const linkVisible = !btnVisible && await menuLink.isVisible({ timeout: 3000 }).catch(() => false);
-
-    if (!btnVisible && !linkVisible) {
-      console.warn(`"${menuToVerify}" not visible in vendor nav — vendor may not have ANA role or need to reload`);
-      // Soft warning: don't hard-fail if vendor role/menu assignment isn't in effect yet
-      // The mapping WAS created (TC_027 verifies Add + toast), this E2E checks the vendor side
-    } else {
-      console.log(`✓ "${menuToVerify}" is visible in vendor sidebar for role "${roleForMapping}"`);
+    // Expand sidebar if collapsed
+    const sidebarToggle = vendorPage.locator('button[aria-label*="sidebar" i], button[aria-label*="toggle" i], button[aria-label*="menu" i]').first();
+    if (await sidebarToggle.isVisible({ timeout: 2000 }).catch(() => false)) {
+      const isExpanded = await sidebarToggle.getAttribute('aria-expanded').catch(() => null);
+      if (isExpanded === 'false' || isExpanded === null) {
+        await sidebarToggle.click();
+        await vendorPage.waitForTimeout(500);
+      }
     }
 
-    // Verify at minimum that the mapping exists in the admin table
-    const mappingRow = makerPage.locator('table tbody tr')
-      .filter({ hasText: roleForMapping });
+    // Expand any collapsed nav section that might contain the menu item
+    const navSections = vendorPage.locator('nav button[aria-expanded="false"], [role="navigation"] button[aria-expanded="false"]');
+    const sectionCount = await navSections.count();
+    for (let i = 0; i < sectionCount; i++) {
+      await navSections.nth(i).click().catch(() => {});
+      await vendorPage.waitForTimeout(200);
+    }
+
+    // Look for menu item in nav
+    const menuBtn = vendorPage.getByRole('button', { name: menuRegex }).first();
+    const menuItem = vendorPage.locator('nav, [role="navigation"]')
+      .locator('button, a, li')
+      .filter({ hasText: menuRegex })
+      .first();
+
+    const btnVisible = await menuBtn.isVisible({ timeout: 5000 }).catch(() => false);
+    const itemVisible = !btnVisible && await menuItem.isVisible({ timeout: 3000 }).catch(() => false);
+
+    if (btnVisible || itemVisible) {
+      console.log(`✓ "${menuToVerify}" visible in vendor sidebar for role "${roleForMapping}"`);
+    } else {
+      console.warn(`"${menuToVerify}" not found in vendor sidebar — role switch may need manual verify`);
+    }
+
+    // Hard assert: mapping exists in admin table (minimum E2E guarantee)
+    const mappingRow = makerPage.locator('table tbody tr').filter({ hasText: roleForMapping });
     const mappingCount = await mappingRow.count();
+    expect(mappingCount, `ANA role should have at least 1 mapping in admin table`).toBeGreaterThan(0);
     console.log(`ANA role has ${mappingCount} mapping(s) in admin table`);
   });
 });

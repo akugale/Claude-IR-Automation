@@ -206,13 +206,17 @@ test.describe('Rating Attribute Mapping', () => {
   });
 
   // ─── TC_020 ─────────────────────────────────────────────────────────────────
-  test('[TC_020] adding a valid record sends it for authorization with success or pending toast', async () => {
+  test('[TC_020] adding a valid record — toast shown and record appears in table', async () => {
     await ramPage.addAttributeMapping(
       knownExistingRatingAttributeMappingParam,
       ratingAttributeMappingData.attributeId,
       ratingAttributeMappingData.dataType,
     );
     await ramPage.verifySuccessOrPendingMessage();
+    // Verify: record appears in table (pending or active)
+    await ramPage.goto();
+    await ramPage.table.search(knownExistingRatingAttributeMappingParam);
+    await ramPage.table.verifyRowExistsByCellText(knownExistingRatingAttributeMappingParam);
   });
 
   // ─── TC_021 ─────────────────────────────────────────────────────────────────
@@ -235,10 +239,18 @@ test.describe('Rating Attribute Mapping', () => {
   });
 
   // ─── TC_022b ─────────────────────────────────────────────────────────────────
-  test('[TC_022b] confirming delete sends record for authorization with success or pending toast', async () => {
+  test('[TC_022b] confirming delete sends for authorization — toast shown, row count decreases', async () => {
+    await ramPage.goto();
+    const countBefore = await ramPage.table.getRowCount();
     await ramPage.openDeleteConfirmation(knownExistingRatingAttributeMappingParam);
     await ramPage.confirmDelete();
     await ramPage.verifySuccessOrPendingMessage();
+    // Verify: row count decreased (record removed or pending deletion)
+    await ramPage.goto();
+    const countAfter = await ramPage.table.getRowCount();
+    // Expected: row count decreases after delete (record removed or marked for pending deletion)
+    // Actual if fails: row count unchanged — record may still be in table or delete failed
+    expect(countAfter, `Expected: row count < ${countBefore} after delete | Actual: row count = ${countAfter} (unchanged)`).toBeLessThan(countBefore);
   });
 
   // ─── TC_023 ─────────────────────────────────────────────────────────────────
@@ -277,12 +289,22 @@ test.describe('Rating Attribute Mapping', () => {
   });
 
   // ─── TC_028 ─────────────────────────────────────────────────────────────────
-  test('[TC_028] editing a record and clicking Update sends it for authorization', async () => {
+  test('[TC_028] editing a record — toast shown and updated data type visible in table', async () => {
     await ramPage.editAndUpdate(
       knownExistingRatingAttributeMappingParam,
       ratingAttributeMappingEditData.updatedDataType,
     );
     await ramPage.verifySuccessOrPendingMessage();
+    // Verify: updated data type visible in table row
+    await ramPage.goto();
+    await ramPage.table.search(knownExistingRatingAttributeMappingParam);
+    const editedRow = page.locator('table tbody tr').filter({ hasText: knownExistingRatingAttributeMappingParam });
+    // Expected: row with knownExistingRatingAttributeMappingParam is visible in table after edit
+    // Actual if fails: row not found — edit may not have been applied or record is in pending state
+    await expect(editedRow.first(), `Expected: row with param "${knownExistingRatingAttributeMappingParam}" visible in table after edit | Actual: row not found`).toBeVisible({ timeout: 8000 });
+    // Expected: row contains the updated data type value
+    // Actual if fails: row shows old data type or no match — edit not reflected in table
+    await expect(editedRow.first(), `Expected: row to contain updated data type "${ratingAttributeMappingEditData.updatedDataType}" | Actual: row missing updated value`).toContainText(ratingAttributeMappingEditData.updatedDataType);
   });
 
   // ─── TC_029 ─────────────────────────────────────────────────────────────────

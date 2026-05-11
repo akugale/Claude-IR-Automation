@@ -4,9 +4,11 @@ import {
   branchTypeEditData,
   knownExistingBranchTypeCode,
   users,
+  CHECKER_ENABLED,
 } from '../fixtures/testData';
 import { BranchTypePage } from '../pages/BranchTypePage';
 import { LoginPage } from '../pages/LoginPage';
+import { AuthorizationPage } from '../pages/AuthorizationPage';
 import {
   verifySortDataOrder,
   verifySortPaginationCompatibility,
@@ -50,8 +52,33 @@ test.describe('Branch Type', () => {
     await branchTypePage.closeOpenModal();
   });
 
-  // ─── TC_003 — checker flow pending ──────────────────────────────────────────
-  test.skip('[TC_003] add valid data submits and sends for authorisation — checker flow pending', async () => {});
+  // ─── TC_003 ─────────────────────────────────────────────────────────────────
+  test('[TC_003] add valid data — checker approves — record appears in branch type table', async () => {
+    if (!CHECKER_ENABLED) { test.skip(true, 'CHECKER_ENABLED=false — set env var to run'); return; }
+
+    // ── Maker: add record ──────────────────────────────────────────────────────
+    await branchTypePage.addBranchType(branchTypeData.code, branchTypeData.description);
+    const toast = page.locator('p-toast .p-toast-message').first();
+    await expect(toast).toBeVisible({ timeout: 8000 });
+    await expect(toast).toContainText(/pending|authoris/i);
+
+    // ── Checker: login + approve ───────────────────────────────────────────────
+    const checkerCtx = await page.context().browser()!.newContext({ baseURL });
+    const checkerPage = await checkerCtx.newPage();
+    const checkerLogin = new LoginPage(checkerPage);
+    await checkerLogin.goto();
+    await checkerLogin.loginAs(users.checker.username, users.checker.password);
+    const authPage = new AuthorizationPage(checkerPage);
+    await authPage.goto();
+    await authPage.verifyRecordVisible(branchTypeData.code);
+    await authPage.approveRecord(branchTypeData.code);
+    await authPage.verifyRecordNotVisible(branchTypeData.code);
+    await checkerCtx.close();
+
+    // ── Verify: record active in maker table ──────────────────────────────────
+    await branchTypePage.goto();
+    await branchTypePage.verifyRecordExists(branchTypeData.code, branchTypeData.description);
+  });
 
   // ─── TC_004 ─────────────────────────────────────────────────────────────────
   test('[TC_004a] code field enforces max length', async () => {
@@ -68,11 +95,53 @@ test.describe('Branch Type', () => {
     await branchTypePage.verifyAddModalOpen();
   });
 
-  // ─── TC_005 — checker flow pending ──────────────────────────────────────────
-  test.skip('[TC_005] record is sent for authorization after add — checker flow pending', async () => {});
+  // ─── TC_005 ─────────────────────────────────────────────────────────────────
+  test('[TC_005] record is sent for authorization after add — pending entry visible on auth screen', async () => {
+    if (!CHECKER_ENABLED) { test.skip(true, 'CHECKER_ENABLED=false — set env var to run'); return; }
 
-  // ─── TC_006 — checker flow pending ──────────────────────────────────────────
-  test.skip('[TC_006] record reflected in table after checker approval — checker flow pending', async () => {});
+    // ── Maker: add record ──────────────────────────────────────────────────────
+    await branchTypePage.addBranchType(branchTypeData.code, branchTypeData.description);
+    const toast = page.locator('p-toast .p-toast-message').first();
+    await expect(toast).toBeVisible({ timeout: 8000 });
+    await expect(toast).toContainText(/pending|authoris/i);
+
+    // ── Checker: verify pending entry visible on auth screen ──────────────────
+    const checkerCtx = await page.context().browser()!.newContext({ baseURL });
+    const checkerPage = await checkerCtx.newPage();
+    await new LoginPage(checkerPage).goto();
+    await new LoginPage(checkerPage).loginAs(users.checker.username, users.checker.password);
+    const authPage = new AuthorizationPage(checkerPage);
+    await authPage.goto();
+    await authPage.verifyRecordVisible(branchTypeData.code);
+    await authPage.verifyRecordDetails(branchTypeData.code, 'Add');
+    await checkerCtx.close();
+  });
+
+  // ─── TC_006 ─────────────────────────────────────────────────────────────────
+  test('[TC_006] checker rejects add — record not reflected in maker table', async () => {
+    if (!CHECKER_ENABLED) { test.skip(true, 'CHECKER_ENABLED=false — set env var to run'); return; }
+
+    // ── Maker: add record ──────────────────────────────────────────────────────
+    await branchTypePage.addBranchType(branchTypeData.code, branchTypeData.description);
+    const toast = page.locator('p-toast .p-toast-message').first();
+    await expect(toast).toBeVisible({ timeout: 8000 });
+
+    // ── Checker: reject ────────────────────────────────────────────────────────
+    const checkerCtx = await page.context().browser()!.newContext({ baseURL });
+    const checkerPage = await checkerCtx.newPage();
+    await new LoginPage(checkerPage).goto();
+    await new LoginPage(checkerPage).loginAs(users.checker.username, users.checker.password);
+    const authPage = new AuthorizationPage(checkerPage);
+    await authPage.goto();
+    await authPage.verifyRecordVisible(branchTypeData.code);
+    await authPage.rejectRecord(branchTypeData.code);
+    await authPage.verifyRecordNotVisible(branchTypeData.code);
+    await checkerCtx.close();
+
+    // ── Verify: record NOT in maker table after rejection ─────────────────────
+    await branchTypePage.goto();
+    await branchTypePage.verifyRecordNotExists(branchTypeData.code);
+  });
 
   // ─── TC_007 ─────────────────────────────────────────────────────────────────
   test('[TC_007] add button disabled when mandatory fields are empty', async () => {
@@ -90,6 +159,7 @@ test.describe('Branch Type', () => {
 
   // ─── TC_008 — app bug: no Reset button in add modal (will fail) ────────────
   test('[TC_008] reset button clears all fields in add modal', async () => {
+    test.info().annotations.push({ type: 'bug', description: 'App bug: Reset button absent in add modal — test fails until Reset is implemented' });
     await branchTypePage.openAddModal();
     await page.locator('p-dialog').getByPlaceholder(/enter code/i).fill('TESTCODE');
     await page.locator('p-dialog').getByPlaceholder(/enter description/i).fill('Test Description');
@@ -173,32 +243,120 @@ test.describe('Branch Type', () => {
     await verifyExportExcelAllRecords(branchTypePage.export, branchTypePage.paginator);
   });
 
-  // ─── TC_016 — checker flow pending ──────────────────────────────────────────
-  test.skip('[TC_016] auth log shows entries with status and details — checker flow pending', async () => {});
+  // ─── TC_016 ─────────────────────────────────────────────────────────────────
+  test('[TC_016] edit sends for auth — entry visible with Edit action type on auth screen', async () => {
+    if (!CHECKER_ENABLED) { test.skip(true, 'CHECKER_ENABLED=false — set env var to run'); return; }
+
+    // ── Maker: edit record ─────────────────────────────────────────────────────
+    await branchTypePage.editBranchType(knownExistingBranchTypeCode, branchTypeEditData.updatedDescription);
+
+    // ── Checker: verify entry visible with Edit action type ───────────────────
+    const checkerCtx = await page.context().browser()!.newContext({ baseURL });
+    const checkerPage = await checkerCtx.newPage();
+    await new LoginPage(checkerPage).goto();
+    await new LoginPage(checkerPage).loginAs(users.checker.username, users.checker.password);
+    const authPage = new AuthorizationPage(checkerPage);
+    await authPage.goto();
+    await authPage.verifyRecordVisible(knownExistingBranchTypeCode);
+    await authPage.verifyRecordDetails(knownExistingBranchTypeCode, 'Edit');
+    await checkerCtx.close();
+  });
 
   // ─── TC_017 — known bug: sends for auth even with no change (will fail) ──────
   test('[TC_017] update without changes does not send for authorisation', async () => {
+    test.info().annotations.push({ type: 'bug', description: 'Known bug: app sends for authorisation even when no field was changed — fails until fixed' });
     await branchTypePage.openEditModal(knownExistingBranchTypeCode);
     await branchTypePage.clickUpdateInModal();
     await branchTypePage.verifyNoAuthRequestToast();
   });
 
-  // ─── TC_018 — checker flow pending ──────────────────────────────────────────
-  test.skip('[TC_018] delete record sends for authorization — checker flow pending', async () => {});
+  // ─── TC_018 ─────────────────────────────────────────────────────────────────
+  test('[TC_018] delete record sends for authorization — pending toast and delete entry on auth screen', async () => {
+    if (!CHECKER_ENABLED) { test.skip(true, 'CHECKER_ENABLED=false — set env var to run'); return; }
 
-  // ─── TC_019 — checker flow pending ──────────────────────────────────────────
-  test.skip('[TC_019] approve deletion removes record — checker flow pending', async () => {});
+    // ── Maker: confirm delete → sends for auth ────────────────────────────────
+    await branchTypePage.table.clickRowAction(knownExistingBranchTypeCode, 'ph-trash');
+    await page.getByRole('button', { name: /^yes$/i }).first().waitFor({ state: 'visible', timeout: 5000 });
+    await page.getByRole('button', { name: /^yes$/i }).first().click();
+    const toast = page.locator('p-toast .p-toast-message').first();
+    await expect(toast).toBeVisible({ timeout: 8000 });
+    await expect(toast).toContainText(/pending|authoris/i);
 
-  // ─── TC_020 ─────────────────────────────────────────────────────────────────
-  test('[TC_020] maker edits description of branch type', async () => {
-    await branchTypePage.editBranchType(knownExistingBranchTypeCode, branchTypeEditData.updatedDescription);
+    // ── Checker: verify delete request visible with Delete action type ────────
+    const checkerCtx = await page.context().browser()!.newContext({ baseURL });
+    const checkerPage = await checkerCtx.newPage();
+    await new LoginPage(checkerPage).goto();
+    await new LoginPage(checkerPage).loginAs(users.checker.username, users.checker.password);
+    const authPage = new AuthorizationPage(checkerPage);
+    await authPage.goto();
+    await authPage.verifyRecordVisible(knownExistingBranchTypeCode);
+    await authPage.verifyRecordDetails(knownExistingBranchTypeCode, 'Delete');
+    await checkerCtx.close();
   });
 
-  // ─── TC_021 — checker flow pending ──────────────────────────────────────────
-  test.skip('[TC_021] edited entries sent for authorization — checker flow pending', async () => {});
+  // ─── TC_019 ─────────────────────────────────────────────────────────────────
+  test('[TC_019] checker approves deletion — record removed from maker table', async () => {
+    if (!CHECKER_ENABLED) { test.skip(true, 'CHECKER_ENABLED=false — set env var to run'); return; }
+
+    // ── Maker: confirm delete → sends for auth ────────────────────────────────
+    await branchTypePage.table.clickRowAction(knownExistingBranchTypeCode, 'ph-trash');
+    await page.getByRole('button', { name: /^yes$/i }).first().waitFor({ state: 'visible', timeout: 5000 });
+    await page.getByRole('button', { name: /^yes$/i }).first().click();
+
+    // ── Checker: approve deletion ─────────────────────────────────────────────
+    const checkerCtx = await page.context().browser()!.newContext({ baseURL });
+    const checkerPage = await checkerCtx.newPage();
+    await new LoginPage(checkerPage).goto();
+    await new LoginPage(checkerPage).loginAs(users.checker.username, users.checker.password);
+    const authPage = new AuthorizationPage(checkerPage);
+    await authPage.goto();
+    await authPage.verifyRecordVisible(knownExistingBranchTypeCode);
+    await authPage.approveRecord(knownExistingBranchTypeCode);
+    await authPage.verifyRecordNotVisible(knownExistingBranchTypeCode);
+    await checkerCtx.close();
+
+    // ── Verify: record removed from maker table ───────────────────────────────
+    await branchTypePage.goto();
+    await branchTypePage.verifyRecordNotExists(knownExistingBranchTypeCode);
+  });
+
+  // ─── TC_020 ─────────────────────────────────────────────────────────────────
+  test('[TC_020] maker edits description of branch type — updated value visible in table', async () => {
+    await branchTypePage.editBranchType(knownExistingBranchTypeCode, branchTypeEditData.updatedDescription);
+    // Verify: record still in table with updated description (pending or applied)
+    await branchTypePage.goto();
+    await branchTypePage.table.search(knownExistingBranchTypeCode);
+    const editedRow = page.locator('table tbody tr').filter({ hasText: knownExistingBranchTypeCode });
+    // Expected: row with knownExistingBranchTypeCode is visible in table after edit
+    // Actual if fails: row not found — edit may not have been applied or record is in pending state
+    await expect(editedRow.first(), `Expected: row with code "${knownExistingBranchTypeCode}" visible in table after edit | Actual: row not found`).toBeVisible({ timeout: 8000 });
+    // Expected: row contains the updated description value
+    // Actual if fails: row shows old description or no match — edit not reflected in table
+    await expect(editedRow.first(), `Expected: row to contain updated description "${branchTypeEditData.updatedDescription}" | Actual: row missing updated text`).toContainText(branchTypeEditData.updatedDescription);
+  });
+
+  // ─── TC_021 ─────────────────────────────────────────────────────────────────
+  test('[TC_021] edit sends for authorization — pending entry visible with Edit action on auth screen', async () => {
+    if (!CHECKER_ENABLED) { test.skip(true, 'CHECKER_ENABLED=false — set env var to run'); return; }
+
+    // ── Maker: edit record ─────────────────────────────────────────────────────
+    await branchTypePage.editBranchType(knownExistingBranchTypeCode, branchTypeEditData.updatedDescription);
+
+    // ── Checker: verify edit entry visible in Pending tab ─────────────────────
+    const checkerCtx = await page.context().browser()!.newContext({ baseURL });
+    const checkerPage = await checkerCtx.newPage();
+    await new LoginPage(checkerPage).goto();
+    await new LoginPage(checkerPage).loginAs(users.checker.username, users.checker.password);
+    const authPage = new AuthorizationPage(checkerPage);
+    await authPage.goto();
+    await authPage.verifyRecordVisible(knownExistingBranchTypeCode);
+    await authPage.verifyRecordDetails(knownExistingBranchTypeCode, 'Edit');
+    await checkerCtx.close();
+  });
 
   // ─── TC_022 — app bug: no Reset button in edit modal (will fail) ───────────
   test('[TC_022] edit modal reset restores original field values', async () => {
+    test.info().annotations.push({ type: 'bug', description: 'App bug: Reset button absent in edit modal — test fails until Reset is implemented' });
     await branchTypePage.editAndResetModal(knownExistingBranchTypeCode, 'TEMPORARY_DESCRIPTION');
   });
 
@@ -210,8 +368,30 @@ test.describe('Branch Type', () => {
     await branchTypePage.closeOpenModal();
   });
 
-  // ─── TC_024 — checker flow pending ──────────────────────────────────────────
-  test.skip('[TC_024] edited entry updated in table after checker approval — checker flow pending', async () => {});
+  // ─── TC_024 ─────────────────────────────────────────────────────────────────
+  test('[TC_024] checker approves edit — updated description reflected in maker table', async () => {
+    if (!CHECKER_ENABLED) { test.skip(true, 'CHECKER_ENABLED=false — set env var to run'); return; }
+
+    // ── Maker: edit record ─────────────────────────────────────────────────────
+    await branchTypePage.editBranchType(knownExistingBranchTypeCode, branchTypeEditData.updatedDescription);
+
+    // ── Checker: approve edit ─────────────────────────────────────────────────
+    const checkerCtx = await page.context().browser()!.newContext({ baseURL });
+    const checkerPage = await checkerCtx.newPage();
+    await new LoginPage(checkerPage).goto();
+    await new LoginPage(checkerPage).loginAs(users.checker.username, users.checker.password);
+    const authPage = new AuthorizationPage(checkerPage);
+    await authPage.goto();
+    await authPage.verifyRecordVisible(knownExistingBranchTypeCode);
+    await authPage.approveRecord(knownExistingBranchTypeCode);
+    await authPage.verifyRecordNotVisible(knownExistingBranchTypeCode);
+    await checkerCtx.close();
+
+    // ── Verify: updated description in maker table ────────────────────────────
+    await branchTypePage.goto();
+    const row = page.locator('table tbody tr').filter({ hasText: knownExistingBranchTypeCode });
+    await expect(row.first()).toContainText(branchTypeEditData.updatedDescription);
+  });
 
   // ─── TC_025 ─────────────────────────────────────────────────────────────────
   // Skipped: view modal does not open — 'DO' may be in pending auth state from a prior run;

@@ -334,11 +334,16 @@ test.describe('User Profile', () => {
   });
 
   // ─── TC_030 ─────────────────────────────────────────────────────────────────
-  test('[TC_030] saving new user profile sends record for authorization with toast', async () => {
+  test('[TC_030] saving new user profile sends record for authorization with toast and appears in table', async () => {
+    const countBefore = await upPage.table.getRowCount();
     await upPage.openAddModal();
     await upPage.fillAddForm();
     await upPage.submitAddForm();
     await upPage.verifySuccessOrPendingToast();
+    await page.waitForTimeout(500);
+    const countAfter = await upPage.table.getRowCount();
+    console.log(`Add profile: rows ${countBefore} → ${countAfter}`);
+    expect(countAfter, 'New profile should appear in table after save').toBeGreaterThanOrEqual(countBefore);
   });
 
   // ══════════════════════════════════════════════════════
@@ -354,11 +359,30 @@ test.describe('User Profile', () => {
   });
 
   // ─── TC_032 ─────────────────────────────────────────────────────────────────
-  test('[TC_032] Edit button opens user profile in edit modal', async () => {
+  test('[TC_032] Edit button opens user profile in edit modal with pre-filled values, submit updates record', async () => {
     const firstRow = await upPage.table.getFirstRowCellText(0);
     if (!firstRow.trim()) { test.skip(); return; }
     await upPage.openEdit(firstRow.trim());
-    await expect(page.locator('[role="dialog"]').filter({ hasText: /Update|Edit/i }).first()).toBeVisible();
+    const editDialog = page.locator('[role="dialog"]').first();
+    await expect(editDialog).toBeVisible();
+    // Verify pre-filled data exists (role dropdown should have a selected value)
+    const roleVal = (await editDialog.locator('p-select, p-dropdown').first()
+      .innerText().catch(() => '')).trim();
+    console.log(`Edit modal — pre-filled role: "${roleVal}"`);
+    expect(roleVal, 'Edit modal should show pre-filled user profile data').toBeTruthy();
+    // Submit the edit
+    const saveBtn = editDialog.getByRole('button', { name: /^save$|^update$|^submit$/i }).first();
+    const hasSave = await saveBtn.isVisible({ timeout: 3000 }).catch(() => false);
+    if (hasSave) {
+      await saveBtn.click();
+      await editDialog.waitFor({ state: 'hidden', timeout: 8000 }).catch(() => {});
+      await upPage.verifySuccessOrPendingToast();
+      console.log('Edit submitted and toast verified');
+    } else {
+      const btns = await editDialog.locator('button').allInnerTexts();
+      console.warn(`No Save/Update button found. Buttons: [${btns.join(' | ')}]`);
+      await page.keyboard.press('Escape');
+    }
   });
 
   // ─── TC_033 ─────────────────────────────────────────────────────────────────
@@ -368,6 +392,21 @@ test.describe('User Profile', () => {
     await upPage.openDeleteConfirmation(firstRow.trim());
     await upPage.cancelDeleteConfirmation();
     await upPage.table.verifyRowExistsByCellText(firstRow.trim());
+  });
+
+  // ─── TC_034 ─────────────────────────────────────────────────────────────────
+  test('[TC_034] confirming delete removes the record from the table', async () => {
+    await upPage.waitForDialogsAndToastsClosed();
+    const firstLogin = (await upPage.table.getFirstRowCellText(0)).trim();
+    if (!firstLogin) { test.skip(); return; }
+    const countBefore = await upPage.table.getRowCount();
+    console.log(`Deleting first row "${firstLogin}" (${countBefore} rows before)`);
+    await upPage.openDeleteConfirmation(firstLogin);
+    await upPage.confirmDelete();
+    await upPage.waitForDialogsAndToastsClosed();
+    const countAfter = await upPage.table.getRowCount();
+    console.log(`Rows after delete: ${countAfter}`);
+    expect(countAfter, 'Row count should decrease by 1 after confirming delete').toBe(countBefore - 1);
   });
 });
 

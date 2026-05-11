@@ -218,12 +218,16 @@ test.describe('Rating Correction', () => {
   });
 
   // ─── TC_019 ─────────────────────────────────────────────────────────────────
-  test('[TC_019] adding a valid record sends it for authorization with success or pending toast', async () => {
+  test('[TC_019] adding a valid record — toast shown and record appears in table', async () => {
     await rcPage.addRatingCorrection(
       ratingCorrectionData.parameter,
       ratingCorrectionData.criteria,
     );
     await rcPage.verifySuccessOrPendingMessage();
+    // Verify: record appears in table (pending or active)
+    await rcPage.goto();
+    await rcPage.table.search(ratingCorrectionData.parameter);
+    await rcPage.table.verifyRowExistsByCellText(ratingCorrectionData.parameter);
   });
 
   // ─── TC_020 ─────────────────────────────────────────────────────────────────
@@ -245,10 +249,18 @@ test.describe('Rating Correction', () => {
   });
 
   // ─── TC_021b ─────────────────────────────────────────────────────────────────
-  test('[TC_021b] confirming delete sends record for authorization with success or pending toast', async () => {
+  test('[TC_021b] confirming delete sends for authorization — toast shown, row count decreases', async () => {
+    await rcPage.goto();
+    const countBefore = await rcPage.table.getRowCount();
     await rcPage.openDeleteConfirmation(knownExistingRatingCorrectionParam);
     await rcPage.confirmDelete();
     await rcPage.verifySuccessOrPendingMessage();
+    // Verify: row count decreased (record removed or pending deletion)
+    await rcPage.goto();
+    const countAfter = await rcPage.table.getRowCount();
+    // Expected: row count decreases after delete (record removed or marked for pending deletion)
+    // Actual if fails: row count unchanged — record may still be in table or delete failed
+    expect(countAfter, `Expected: row count < ${countBefore} after delete | Actual: row count = ${countAfter} (unchanged)`).toBeLessThan(countBefore);
   });
 
   // ─── TC_022 ─────────────────────────────────────────────────────────────────
@@ -294,12 +306,22 @@ test.describe('Rating Correction', () => {
   });
 
   // ─── TC_028 ─────────────────────────────────────────────────────────────────
-  test('[TC_028] editing a record and clicking Update sends it for authorization', async () => {
+  test('[TC_028] editing a record — toast shown and updated criteria visible in table', async () => {
     await rcPage.editAndUpdate(
       knownExistingRatingCorrectionParam,
       ratingCorrectionEditData.updatedCriteria,
     );
     await rcPage.verifySuccessOrPendingMessage();
+    // Verify: updated criteria visible in table row
+    await rcPage.goto();
+    await rcPage.table.search(knownExistingRatingCorrectionParam);
+    const editedRow = page.locator('table tbody tr').filter({ hasText: knownExistingRatingCorrectionParam });
+    // Expected: row with knownExistingRatingCorrectionParam is visible in table after edit
+    // Actual if fails: row not found — edit may not have been applied or record is in pending state
+    await expect(editedRow.first(), `Expected: row with param "${knownExistingRatingCorrectionParam}" visible in table after edit | Actual: row not found`).toBeVisible({ timeout: 8000 });
+    // Expected: row contains the updated criteria value
+    // Actual if fails: row shows old criteria or no match — edit not reflected in table
+    await expect(editedRow.first(), `Expected: row to contain updated criteria "${ratingCorrectionEditData.updatedCriteria}" | Actual: row missing updated value`).toContainText(ratingCorrectionEditData.updatedCriteria);
   });
 
   // ─── TC_029 ─────────────────────────────────────────────────────────────────

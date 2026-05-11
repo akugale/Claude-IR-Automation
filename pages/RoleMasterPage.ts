@@ -192,11 +192,30 @@ export class RoleMasterPage extends BasePage {
     await dialog.waitFor({ state: 'hidden', timeout: 5000 }).catch(() => {});
   }
 
-  // ─── TC_027 / TC_028 – View / Delete ─────────────────────────────────────────
+  // ─── TC_027 / TC_028 / TC_029 / TC_030 – View / Edit / Delete ───────────────
 
   async openView(roleCode: string): Promise<void> {
     await this.table.clickRowAction(roleCode, 'ph-eye');
     await this.page.locator('[role="dialog"]').waitFor({ state: 'visible', timeout: 8000 });
+  }
+
+  async openEdit(roleCode: string): Promise<void> {
+    await this.table.clickRowAction(roleCode, 'ph-pencil-simple');
+    await this.page.locator('[role="dialog"]').waitFor({ state: 'visible', timeout: 8000 });
+  }
+
+  async submitEditForm(): Promise<void> {
+    const dialog = this.page.locator('[role="dialog"]').first();
+    const saveBtn = dialog.getByRole('button', { name: /^save$|^update$|^submit$/i }).first();
+    await saveBtn.waitFor({ state: 'visible', timeout: 5000 });
+    await saveBtn.click();
+    await dialog.waitFor({ state: 'hidden', timeout: 8000 }).catch(() => {});
+  }
+
+  async waitForDialogsAndToastsClosed(): Promise<void> {
+    await this.page.locator('.p-dialog-mask').waitFor({ state: 'hidden', timeout: 5000 }).catch(() => {});
+    await this.page.locator('p-toast .p-toast-message').waitFor({ state: 'hidden', timeout: 5000 }).catch(() => {});
+    await this.page.waitForTimeout(300);
   }
 
   async openDeleteConfirmation(roleCode: string): Promise<void> {
@@ -205,6 +224,19 @@ export class RoleMasterPage extends BasePage {
     await confirmDialog.waitFor({ state: 'visible', timeout: 5000 }).catch(async () => {
       await expect(this.page.getByRole('button', { name: /^yes$/i })).toBeVisible({ timeout: 3000 });
     });
+  }
+
+  async confirmDelete(): Promise<void> {
+    const yesBtn = this.page.getByRole('button', { name: /^yes$/i }).first();
+    await yesBtn.waitFor({ state: 'visible', timeout: 5000 });
+    await yesBtn.click();
+    await this.page.locator('[role="alertdialog"], [role="dialog"]')
+      .filter({ hasText: /delete|confirm/i })
+      .waitFor({ state: 'hidden', timeout: 8000 })
+      .catch(() => {});
+    await this.page.locator('p-toast .p-toast-message, .p-toast-message').first()
+      .waitFor({ state: 'visible', timeout: 8000 })
+      .catch(() => {});
   }
 
   async cancelDeleteConfirmation(): Promise<void> {

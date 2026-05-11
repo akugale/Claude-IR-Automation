@@ -3,9 +3,11 @@ import {
   knownViewableRatingScaleRatingType,
   ratingScaleEditData,
   users,
+  CHECKER_ENABLED,
 } from '../fixtures/testData';
 import { RatingScalePage } from '../pages/RatingScalePage';
 import { LoginPage } from '../pages/LoginPage';
+import { AuthorizationPage } from '../pages/AuthorizationPage';
 
 const baseURL = process.env.BASE_URL ?? 'http://localhost:3000';
 
@@ -102,23 +104,84 @@ test.describe('Rating Scale', () => {
   });
 
   // ─── TC_011 ─────────────────────────────────────────────────────────────────
-  test('[TC_011] entries sent for authorization are visible in auth screen', async () => {
-    test.skip(true, 'Checker flow — requires checker role login and authorization screen');
+  test('[TC_011] edit sends for authorization — entry visible with Edit action type on auth screen', async () => {
+    if (!CHECKER_ENABLED) { test.skip(true, 'CHECKER_ENABLED=false — set env var to run'); return; }
+
+    // ── Maker: edit record ─────────────────────────────────────────────────────
+    await ratingScalePage.openEditModal(knownViewableRatingScaleRatingType);
+    await ratingScalePage.editDescription(ratingScaleEditData.updatedDescription);
+    await ratingScalePage.clickUpdateInModal();
+    await ratingScalePage.verifySuccessOrPendingMessage();
+
+    // ── Checker: verify edit entry visible in Pending tab ─────────────────────
+    const checkerCtx = await page.context().browser()!.newContext({ baseURL });
+    const checkerPage = await checkerCtx.newPage();
+    await new LoginPage(checkerPage).goto();
+    await new LoginPage(checkerPage).loginAs(users.checker.username, users.checker.password);
+    const authPage = new AuthorizationPage(checkerPage);
+    await authPage.goto();
+    await authPage.verifyRecordVisible(knownViewableRatingScaleRatingType);
+    await authPage.verifyRecordDetails(knownViewableRatingScaleRatingType, 'Edit');
+    await checkerCtx.close();
   });
 
   // ─── TC_012 ─────────────────────────────────────────────────────────────────
-  test('[TC_012] rejected entries are visible in Rejected tab of auth screen', async () => {
-    test.skip(true, 'Checker flow — requires checker role login and authorization screen');
+  test('[TC_012] checker rejects edit — entry moves to Rejected tab and removed from Pending tab', async () => {
+    if (!CHECKER_ENABLED) { test.skip(true, 'CHECKER_ENABLED=false — set env var to run'); return; }
+
+    // ── Maker: edit record ─────────────────────────────────────────────────────
+    await ratingScalePage.openEditModal(knownViewableRatingScaleRatingType);
+    await ratingScalePage.editDescription(ratingScaleEditData.updatedDescription);
+    await ratingScalePage.clickUpdateInModal();
+    await ratingScalePage.verifySuccessOrPendingMessage();
+
+    // ── Checker: reject ────────────────────────────────────────────────────────
+    const checkerCtx = await page.context().browser()!.newContext({ baseURL });
+    const checkerPage = await checkerCtx.newPage();
+    await new LoginPage(checkerPage).goto();
+    await new LoginPage(checkerPage).loginAs(users.checker.username, users.checker.password);
+    const authPage = new AuthorizationPage(checkerPage);
+    await authPage.goto();
+    await authPage.verifyRecordVisible(knownViewableRatingScaleRatingType);
+    await authPage.rejectRecord(knownViewableRatingScaleRatingType);
+    await authPage.verifyRecordNotVisible(knownViewableRatingScaleRatingType);
+    // Verify entry moves to Rejected tab
+    await authPage.goToRejectedTab();
+    await authPage.verifyRecordVisible(knownViewableRatingScaleRatingType);
+    await checkerCtx.close();
   });
 
   // ─── TC_013 ─────────────────────────────────────────────────────────────────
-  test('[TC_013] delete action removes entry after authorization approval', async () => {
-    test.skip(true, 'Rating Scale is seeded data — delete flow requires checker authorization to verify');
-  });
+  // Rating Scale screen has no Delete action button (only View and Edit).
+  // Delete is not supported for seeded Rating Scale data.
+  test.skip('[TC_013] delete action not applicable — Rating Scale screen has no Delete button', async () => {});
 
   // ─── TC_014 ─────────────────────────────────────────────────────────────────
-  test('[TC_014] edited entry is reflected in list after checker authorization', async () => {
-    test.skip(true, 'Checker authorization flow — requires checker role to approve edit');
+  test('[TC_014] checker approves edit — updated description reflected in rating scale table', async () => {
+    if (!CHECKER_ENABLED) { test.skip(true, 'CHECKER_ENABLED=false — set env var to run'); return; }
+
+    // ── Maker: edit record ─────────────────────────────────────────────────────
+    await ratingScalePage.openEditModal(knownViewableRatingScaleRatingType);
+    await ratingScalePage.editDescription(ratingScaleEditData.updatedDescription);
+    await ratingScalePage.clickUpdateInModal();
+    await ratingScalePage.verifySuccessOrPendingMessage();
+
+    // ── Checker: approve edit ─────────────────────────────────────────────────
+    const checkerCtx = await page.context().browser()!.newContext({ baseURL });
+    const checkerPage = await checkerCtx.newPage();
+    await new LoginPage(checkerPage).goto();
+    await new LoginPage(checkerPage).loginAs(users.checker.username, users.checker.password);
+    const authPage = new AuthorizationPage(checkerPage);
+    await authPage.goto();
+    await authPage.verifyRecordVisible(knownViewableRatingScaleRatingType);
+    await authPage.approveRecord(knownViewableRatingScaleRatingType);
+    await authPage.verifyRecordNotVisible(knownViewableRatingScaleRatingType);
+    await checkerCtx.close();
+
+    // ── Verify: updated description in maker table ────────────────────────────
+    await ratingScalePage.goto();
+    const row = page.locator('table tbody tr').filter({ hasText: knownViewableRatingScaleRatingType });
+    await expect(row.first()).toContainText(ratingScaleEditData.updatedDescription);
   });
 
   // ─── TC_015 ─────────────────────────────────────────────────────────────────
@@ -145,11 +208,17 @@ test.describe('Rating Scale', () => {
   });
 
   // ─── TC_018 ─────────────────────────────────────────────────────────────────
-  test('[TC_018] edit and update sends entry for authorization with success or pending notification', async () => {
+  test('[TC_018] edit and update sends entry for authorization — toast shown and record visible in table', async () => {
     await ratingScalePage.openEditModal(knownViewableRatingScaleRatingType);
     await ratingScalePage.editDescription(ratingScaleEditData.updatedDescription);
     await ratingScalePage.clickUpdateInModal();
     await ratingScalePage.verifySuccessOrPendingMessage();
+    // Verify: record still visible in table after edit submission
+    await ratingScalePage.goto();
+    const editedRow = page.locator('table tbody tr').filter({ hasText: knownViewableRatingScaleRatingType });
+    // Expected: row with knownViewableRatingScaleRatingType is still visible in table after edit submission
+    // Actual if fails: row not found — record removed unexpectedly or page did not reload correctly
+    await expect(editedRow.first(), `Expected: row with rating type "${knownViewableRatingScaleRatingType}" still visible in table after edit submission | Actual: row not found`).toBeVisible({ timeout: 8000 });
   });
 
   // ─── TC_019 ─────────────────────────────────────────────────────────────────

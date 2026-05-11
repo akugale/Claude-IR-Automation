@@ -5,9 +5,11 @@ import {
   knownExistingRatingTypeCode,
   knownViewableRatingTypeCode,
   users,
+  CHECKER_ENABLED,
 } from '../fixtures/testData';
 import { RatingTypePage } from '../pages/RatingTypePage';
 import { LoginPage } from '../pages/LoginPage';
+import { AuthorizationPage } from '../pages/AuthorizationPage';
 
 const baseURL = process.env.BASE_URL ?? 'http://localhost:3000';
 
@@ -105,8 +107,36 @@ test.describe('Model Type', () => {
     await ratingTypePage.verifyModalClosed();
   });
 
-  // ─── TC_007 — checker flow pending ──────────────────────────────────────────
-  test.skip('[TC_007] add valid record submits and sends for authorisation — checker flow pending', async () => {});
+  // ─── TC_007 ─────────────────────────────────────────────────────────────────
+  test('[TC_007] add valid record — checker approves — record appears in model type table', async () => {
+    if (!CHECKER_ENABLED) { test.skip(true, 'CHECKER_ENABLED=false — set env var to run'); return; }
+
+    // ── Maker: fill and submit add form ────────────────────────────────────────
+    await ratingTypePage.openAddModal();
+    await ratingTypePage.fillRequiredFields({
+      code: ratingTypeData.code,
+      description: ratingTypeData.description,
+    });
+    await ratingTypePage.submitAddForm();
+    await ratingTypePage.verifyPendingAuthToast();
+
+    // ── Checker: approve ──────────────────────────────────────────────────────
+    const checkerCtx = await page.context().browser()!.newContext({ baseURL });
+    const checkerPage = await checkerCtx.newPage();
+    await new LoginPage(checkerPage).goto();
+    await new LoginPage(checkerPage).loginAs(users.checker.username, users.checker.password);
+    const authPage = new AuthorizationPage(checkerPage);
+    await authPage.goto();
+    await authPage.verifyRecordVisible(ratingTypeData.code);
+    await authPage.approveRecord(ratingTypeData.code);
+    await authPage.verifyRecordNotVisible(ratingTypeData.code);
+    await checkerCtx.close();
+
+    // ── Verify: record active in maker table ──────────────────────────────────
+    await ratingTypePage.goto();
+    const row = page.locator('table tbody tr').filter({ hasText: ratingTypeData.code });
+    await expect(row.first()).toBeVisible({ timeout: 10000 });
+  });
 
   // ─── TC_008 ─────────────────────────────────────────────────────────────────
   test('[TC_008] fill all fields and verify save is enabled', async () => {
@@ -169,11 +199,13 @@ test.describe('Model Type', () => {
 
   // ─── TC_012 — known failure: blank file (will fail) ─────────────────────────
   test('[TC_012] export PDF downloads file', async () => {
+    test.info().annotations.push({ type: 'bug', description: 'Known bug: exported PDF file is blank/empty — fails until export bug is fixed' });
     await ratingTypePage.export.triggerPdf();
   });
 
   // ─── TC_013 — known failure: blank file (will fail) ─────────────────────────
   test('[TC_013] export Excel downloads file', async () => {
+    test.info().annotations.push({ type: 'bug', description: 'Known bug: exported Excel file is blank/empty — fails until export bug is fixed' });
     await ratingTypePage.export.triggerExcel();
   });
 
@@ -196,12 +228,26 @@ test.describe('Model Type', () => {
   });
 
   // ─── TC_016 ─────────────────────────────────────────────────────────────────
-  test('[TC_016] edit description and click update', async () => {
+  test('[TC_016] edit description and click update — toast shown and updated value visible in table', async () => {
     await ratingTypePage.editModelType(knownExistingRatingTypeCode, ratingTypeEditData.updatedDescription);
+    // Verify toast shown
+    const toast = page.locator('p-toast .p-toast-message').first();
+    await expect(toast).toBeVisible({ timeout: 8000 });
+    // Verify: updated description visible in table row
+    await ratingTypePage.goto();
+    await ratingTypePage.table.search(knownExistingRatingTypeCode);
+    const editedRow = page.locator('table tbody tr').filter({ hasText: knownExistingRatingTypeCode });
+    // Expected: row with knownExistingRatingTypeCode is visible in table after edit
+    // Actual if fails: row not found — edit may not have been applied or record is in pending state
+    await expect(editedRow.first(), `Expected: row with code "${knownExistingRatingTypeCode}" visible in table after edit | Actual: row not found`).toBeVisible({ timeout: 8000 });
+    // Expected: row contains the updated description value
+    // Actual if fails: row shows old description or no match — edit not reflected in table
+    await expect(editedRow.first(), `Expected: row to contain updated description "${ratingTypeEditData.updatedDescription}" | Actual: row missing updated text`).toContainText(ratingTypeEditData.updatedDescription);
   });
 
   // ─── TC_017 — known bug: sends for auth even with no change (will fail) ──────
   test('[TC_017] update without changes does not send for authorisation', async () => {
+    test.info().annotations.push({ type: 'bug', description: 'Known bug: app sends for authorisation even when no field was changed — fails until fixed' });
     await ratingTypePage.openEditModal(knownExistingRatingTypeCode);
     await ratingTypePage.clickUpdateInModal();
     await ratingTypePage.verifyNoAuthRequestToast();
@@ -223,8 +269,27 @@ test.describe('Model Type', () => {
   });
 
   // ─── TC_020 ─────────────────────────────────────────────────────────────────
-  test('[TC_020] checker flow pending ─ delete sends for authorization', async () => {
-    test.skip();
+  test('[TC_020] delete record sends for authorization — pending toast and delete entry on auth screen', async () => {
+    if (!CHECKER_ENABLED) { test.skip(true, 'CHECKER_ENABLED=false — set env var to run'); return; }
+
+    // ── Maker: confirm delete → sends for auth ────────────────────────────────
+    await ratingTypePage.table.clickRowAction(knownExistingRatingTypeCode, 'ph-trash');
+    await page.getByRole('button', { name: /^yes$/i }).first().waitFor({ state: 'visible', timeout: 5000 });
+    await page.getByRole('button', { name: /^yes$/i }).first().click();
+    const toast = page.locator('p-toast .p-toast-message').first();
+    await expect(toast).toBeVisible({ timeout: 8000 });
+    await expect(toast).toContainText(/pending|authoris/i);
+
+    // ── Checker: verify delete request visible ────────────────────────────────
+    const checkerCtx = await page.context().browser()!.newContext({ baseURL });
+    const checkerPage = await checkerCtx.newPage();
+    await new LoginPage(checkerPage).goto();
+    await new LoginPage(checkerPage).loginAs(users.checker.username, users.checker.password);
+    const authPage = new AuthorizationPage(checkerPage);
+    await authPage.goto();
+    await authPage.verifyRecordVisible(knownExistingRatingTypeCode);
+    await authPage.verifyRecordDetails(knownExistingRatingTypeCode, 'Delete');
+    await checkerCtx.close();
   });
 
   // ─── TC_021 ─────────────────────────────────────────────────────────────────

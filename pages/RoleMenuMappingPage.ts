@@ -288,6 +288,24 @@ export class RoleMenuMappingPage extends BasePage {
     await this.page.locator('[role="dialog"]').waitFor({ state: 'visible', timeout: 8000 });
   }
 
+  async submitEditForm(): Promise<void> {
+    const updateBtn = this.dialog.getByRole('button', { name: /^update$|^save$|^edit$/i }).first();
+    await updateBtn.waitFor({ state: 'visible', timeout: 5000 });
+    await updateBtn.click();
+    await this.dialog.waitFor({ state: 'hidden', timeout: 8000 }).catch(() => {});
+  }
+
+  async getEditButtonLabel(): Promise<string> {
+    const btn = this.dialog.locator('button[type="submit"], button').filter({ hasText: /update|save|edit/i }).first();
+    return (await btn.innerText().catch(() => '')).trim();
+  }
+
+  async waitForDialogsAndToastsClosed(): Promise<void> {
+    await this.page.locator('.p-dialog-mask').waitFor({ state: 'hidden', timeout: 5000 }).catch(() => {});
+    await this.page.locator('p-toast .p-toast-message').waitFor({ state: 'hidden', timeout: 5000 }).catch(() => {});
+    await this.page.waitForTimeout(300);
+  }
+
   async openDeleteConfirmation(rowText: string): Promise<void> {
     const row = this.page.locator('table tbody tr').filter({ hasText: rowText }).first();
     await row.locator('button:has(.ph-trash)').click();

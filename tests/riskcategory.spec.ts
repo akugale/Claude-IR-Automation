@@ -5,10 +5,12 @@ import {
   riskCategoryData,
   riskCategoryEditData,
   users,
+  CHECKER_ENABLED,
 } from '../fixtures/testData';
 import { RiskCategoryPage } from '../pages/RiskCategoryPage';
 import { RiskCategoriesGroupPage } from '../pages/RiskCategoriesGroupPage';
 import { LoginPage } from '../pages/LoginPage';
+import { AuthorizationPage } from '../pages/AuthorizationPage';
 import {
   verifySortDataOrder,
   verifySortPaginationCompatibility,
@@ -234,7 +236,7 @@ test.describe('Risk Category', () => {
   });
 
   // ─── TC_023 ─────────────────────────────────────────────────────────────────
-  test('[TC_023] adding a valid record sends it for authorization with success or pending toast', async () => {
+  test('[TC_023] adding a valid record — toast shown and record appears in table', async () => {
     await rcPage.addRiskCategory(
       riskCategoryData.code,
       riskCategoryData.description,
@@ -242,6 +244,10 @@ test.describe('Risk Category', () => {
       riskCategoryData.notching,
     );
     await rcPage.verifySuccessOrPendingMessage();
+    // Verify: record appears in table (pending or active)
+    await rcPage.goto();
+    await rcPage.table.search(riskCategoryData.code);
+    await rcPage.table.verifyRowExistsByCellText(riskCategoryData.code);
   });
 
   // ─── TC_024 ─────────────────────────────────────────────────────────────────
@@ -251,13 +257,68 @@ test.describe('Risk Category', () => {
   });
 
   // ─── TC_025 ─────────────────────────────────────────────────────────────────
-  test('[TC_025] entries sent for authorization are visible in auth screen', async () => {
-    test.skip(true, 'Checker flow — requires checker role login and authorization screen');
+  test('[TC_025] add entry visible on auth screen with Add action — checker approves — record in table', async () => {
+    if (!CHECKER_ENABLED) { test.skip(true, 'CHECKER_ENABLED=false — set env var to run'); return; }
+
+    // ── Maker: add record ──────────────────────────────────────────────────────
+    await rcPage.addRiskCategory(
+      riskCategoryData.code,
+      riskCategoryData.description,
+      riskCategoryData.companyScore,
+      riskCategoryData.notching,
+    );
+    await rcPage.verifySuccessOrPendingMessage();
+
+    // ── Checker: verify entry visible → approve ───────────────────────────────
+    const checkerCtx = await page.context().browser()!.newContext({ baseURL });
+    const checkerPage = await checkerCtx.newPage();
+    await new LoginPage(checkerPage).goto();
+    await new LoginPage(checkerPage).loginAs(users.checker.username, users.checker.password);
+    const authPage = new AuthorizationPage(checkerPage);
+    await authPage.goto();
+    await authPage.verifyRecordVisible(riskCategoryData.code);
+    await authPage.verifyRecordDetails(riskCategoryData.code, 'Add');
+    await authPage.approveRecord(riskCategoryData.code);
+    await authPage.verifyRecordNotVisible(riskCategoryData.code);
+    await checkerCtx.close();
+
+    // ── Verify: record active in maker table ──────────────────────────────────
+    await rcPage.goto();
+    const row = page.locator('table tbody tr').filter({ hasText: riskCategoryData.code });
+    await expect(row.first()).toBeVisible({ timeout: 10000 });
   });
 
   // ─── TC_026 ─────────────────────────────────────────────────────────────────
-  test('[TC_026] rejected entries are visible in Rejected tab of auth screen', async () => {
-    test.skip(true, 'Checker flow — requires checker role login and authorization screen');
+  test('[TC_026] checker rejects add — entry moves to Rejected tab and record not in maker table', async () => {
+    if (!CHECKER_ENABLED) { test.skip(true, 'CHECKER_ENABLED=false — set env var to run'); return; }
+
+    // ── Maker: add record ──────────────────────────────────────────────────────
+    await rcPage.addRiskCategory(
+      riskCategoryData.code,
+      riskCategoryData.description,
+      riskCategoryData.companyScore,
+      riskCategoryData.notching,
+    );
+    await rcPage.verifySuccessOrPendingMessage();
+
+    // ── Checker: reject → verify moves to Rejected tab ────────────────────────
+    const checkerCtx = await page.context().browser()!.newContext({ baseURL });
+    const checkerPage = await checkerCtx.newPage();
+    await new LoginPage(checkerPage).goto();
+    await new LoginPage(checkerPage).loginAs(users.checker.username, users.checker.password);
+    const authPage = new AuthorizationPage(checkerPage);
+    await authPage.goto();
+    await authPage.verifyRecordVisible(riskCategoryData.code);
+    await authPage.rejectRecord(riskCategoryData.code);
+    await authPage.verifyRecordNotVisible(riskCategoryData.code);
+    await authPage.goToRejectedTab();
+    await authPage.verifyRecordVisible(riskCategoryData.code);
+    await checkerCtx.close();
+
+    // ── Verify: record NOT in maker table after rejection ─────────────────────
+    await rcPage.goto();
+    await rcPage.table.search(riskCategoryData.code);
+    await rcPage.table.verifyRowNotExists(riskCategoryData.code);
   });
 
   // ─── TC_027 ─────────────────────────────────────────────────────────────────
@@ -268,10 +329,18 @@ test.describe('Risk Category', () => {
   });
 
   // ─── TC_027b ─────────────────────────────────────────────────────────────────
-  test('[TC_027b] confirming delete sends record for authorization with success or pending toast', async () => {
+  test('[TC_027b] confirming delete sends for authorization — toast shown, row count decreases', async () => {
+    await rcPage.goto();
+    const countBefore = await rcPage.table.getRowCount();
     await rcPage.openDeleteConfirmation(knownExistingRiskCategoryCode);
     await rcPage.confirmDelete();
     await rcPage.verifySuccessOrPendingMessage();
+    // Verify: row count decreased (record removed or pending deletion)
+    await rcPage.goto();
+    const countAfter = await rcPage.table.getRowCount();
+    // Expected: row count decreases after delete (record removed or marked for pending deletion)
+    // Actual if fails: row count unchanged — record may still be in table or delete failed
+    expect(countAfter, `Expected: row count < ${countBefore} after delete | Actual: row count = ${countAfter} (unchanged)`).toBeLessThan(countBefore);
   });
 
   // ─── TC_028 ─────────────────────────────────────────────────────────────────
@@ -321,9 +390,19 @@ test.describe('Risk Category', () => {
   });
 
   // ─── TC_034 ─────────────────────────────────────────────────────────────────
-  test('[TC_034] editing a record and clicking Update sends it for authorization', async () => {
+  test('[TC_034] editing a record — toast shown and updated description visible in table', async () => {
     await rcPage.editAndUpdate(knownExistingRiskCategoryCode, riskCategoryEditData.updatedDescription);
     await rcPage.verifySuccessOrPendingMessage();
+    // Verify: updated description visible in table row
+    await rcPage.goto();
+    await rcPage.table.search(knownExistingRiskCategoryCode);
+    const editedRow = page.locator('table tbody tr').filter({ hasText: knownExistingRiskCategoryCode });
+    // Expected: row with knownExistingRiskCategoryCode is visible in table after edit
+    // Actual if fails: row not found — edit may not have been applied or record is in pending state
+    await expect(editedRow.first(), `Expected: row with code "${knownExistingRiskCategoryCode}" visible in table after edit | Actual: row not found`).toBeVisible({ timeout: 8000 });
+    // Expected: row contains the updated description value
+    // Actual if fails: row shows old description or no match — edit not reflected in table
+    await expect(editedRow.first(), `Expected: row to contain updated description "${riskCategoryEditData.updatedDescription}" | Actual: row missing updated text`).toContainText(riskCategoryEditData.updatedDescription);
   });
 
   // ─── TC_035 ─────────────────────────────────────────────────────────────────

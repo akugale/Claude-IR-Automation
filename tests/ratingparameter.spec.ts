@@ -8,9 +8,11 @@ import {
   knownExistingRatingParameterCode,
   knownViewableRatingParameterCode,
   users,
+  CHECKER_ENABLED,
 } from '../fixtures/testData';
 import { RatingParameterPage } from '../pages/RatingParameterPage';
 import { LoginPage } from '../pages/LoginPage';
+import { AuthorizationPage } from '../pages/AuthorizationPage';
 
 const baseURL = process.env.BASE_URL ?? 'http://localhost:3000';
 
@@ -48,14 +50,54 @@ test.describe('Rating Parameter', () => {
     await ratingParameterPage.closeOpenModal();
   });
 
-  // ─── TC_003 — checker flow ───────────────────────────────────────────────────
-  test('[TC_003] record is sent for authorization after submitting add form — checker flow pending', async () => {
-    test.skip();
+  // ─── TC_003 ─────────────────────────────────────────────────────────────────
+  test('[TC_003] add record — pending entry visible on auth screen with Add action type', async () => {
+    if (!CHECKER_ENABLED) { test.skip(true, 'CHECKER_ENABLED=false — set env var to run'); return; }
+
+    // ── Maker: fill and submit add form ────────────────────────────────────────
+    await ratingParameterPage.openAddModal();
+    await ratingParameterPage.fillRequiredFieldsWithDataType(ratingParameterData);
+    await ratingParameterPage.submitAddForm();
+    await ratingParameterPage.verifyPendingAuthToast();
+
+    // ── Checker: verify pending entry visible with Add action type ────────────
+    const checkerCtx = await page.context().browser()!.newContext({ baseURL });
+    const checkerPage = await checkerCtx.newPage();
+    await new LoginPage(checkerPage).goto();
+    await new LoginPage(checkerPage).loginAs(users.checker.username, users.checker.password);
+    const authPage = new AuthorizationPage(checkerPage);
+    await authPage.goto();
+    await authPage.verifyRecordVisible(ratingParameterData.code);
+    await authPage.verifyRecordDetails(ratingParameterData.code, 'Add');
+    await checkerCtx.close();
   });
 
-  // ─── TC_004 — checker flow ───────────────────────────────────────────────────
-  test('[TC_004] record is reflected in list after approving authorization — checker flow pending', async () => {
-    test.skip();
+  // ─── TC_004 ─────────────────────────────────────────────────────────────────
+  test('[TC_004] checker approves add — record reflected in rating parameter list', async () => {
+    if (!CHECKER_ENABLED) { test.skip(true, 'CHECKER_ENABLED=false — set env var to run'); return; }
+
+    // ── Maker: fill and submit add form ────────────────────────────────────────
+    await ratingParameterPage.openAddModal();
+    await ratingParameterPage.fillRequiredFieldsWithDataType(ratingParameterData);
+    await ratingParameterPage.submitAddForm();
+    await ratingParameterPage.verifyPendingAuthToast();
+
+    // ── Checker: approve ──────────────────────────────────────────────────────
+    const checkerCtx = await page.context().browser()!.newContext({ baseURL });
+    const checkerPage = await checkerCtx.newPage();
+    await new LoginPage(checkerPage).goto();
+    await new LoginPage(checkerPage).loginAs(users.checker.username, users.checker.password);
+    const authPage = new AuthorizationPage(checkerPage);
+    await authPage.goto();
+    await authPage.verifyRecordVisible(ratingParameterData.code);
+    await authPage.approveRecord(ratingParameterData.code);
+    await authPage.verifyRecordNotVisible(ratingParameterData.code);
+    await checkerCtx.close();
+
+    // ── Verify: record in maker table ─────────────────────────────────────────
+    await ratingParameterPage.goto();
+    const row = page.locator('table tbody tr').filter({ hasText: ratingParameterData.code });
+    await expect(row.first()).toBeVisible({ timeout: 10000 });
   });
 
   // ─── TC_005 ─────────────────────────────────────────────────────────────────
@@ -105,36 +147,48 @@ test.describe('Rating Parameter', () => {
 
   // ─── TC_009 ─────────────────────────────────────────────────────────────────
   // Custom Master data type does not add a conditional dropdown in this app version
-  test('[TC_009] create rating parameter with Custom Master data type — record sent for authorization', async () => {
+  test('[TC_009] create rating parameter with Custom Master data type — record in table after submission', async () => {
     await ratingParameterPage.openAddModal();
     await ratingParameterPage.fillRequiredFieldsWithDataType(ratingParameterCustomMasterData);
     await ratingParameterPage.verifyAddButtonEnabled();
     await ratingParameterPage.submitAddForm();
     await ratingParameterPage.verifyPendingAuthToast();
+    // Verify: record appears in table (pending or active)
+    await ratingParameterPage.goto();
+    await ratingParameterPage.table.search(ratingParameterCustomMasterData.code);
+    await ratingParameterPage.table.verifyRowExistsByCellText(ratingParameterCustomMasterData.code);
   });
 
   // ─── TC_010 ─────────────────────────────────────────────────────────────────
   // System Master data type does not add a conditional dropdown in this app version
-  test('[TC_010] create rating parameter with System Master data type — record sent for authorization', async () => {
+  test('[TC_010] create rating parameter with System Master data type — record in table after submission', async () => {
     await ratingParameterPage.openAddModal();
     await ratingParameterPage.fillRequiredFieldsWithDataType(ratingParameterSystemMasterData);
     await ratingParameterPage.verifyAddButtonEnabled();
     await ratingParameterPage.submitAddForm();
     await ratingParameterPage.verifyPendingAuthToast();
+    // Verify: record appears in table (pending or active)
+    await ratingParameterPage.goto();
+    await ratingParameterPage.table.search(ratingParameterSystemMasterData.code);
+    await ratingParameterPage.table.verifyRowExistsByCellText(ratingParameterSystemMasterData.code);
   });
 
   // ─── TC_011 ─────────────────────────────────────────────────────────────────
-  test('[TC_011] create rating parameter with data type Numeric — record sent for authorization', async () => {
+  test('[TC_011] create rating parameter with data type Numeric — record in table after submission', async () => {
     await ratingParameterPage.openAddModal();
     await ratingParameterPage.fillRequiredFieldsWithDataType(ratingParameterData);
     await ratingParameterPage.verifyAddButtonEnabled();
     await ratingParameterPage.submitAddForm();
     await ratingParameterPage.verifyPendingAuthToast();
+    // Verify: record appears in table (pending or active)
+    await ratingParameterPage.goto();
+    await ratingParameterPage.table.search(ratingParameterData.code);
+    await ratingParameterPage.table.verifyRowExistsByCellText(ratingParameterData.code);
   });
 
   // ─── TC_012 ─────────────────────────────────────────────────────────────────
   // Data type dependency: Option selection shows Options + Option Tooltips fields (already verified in TC_008)
-  test('[TC_012] create rating parameter with data type Option using alphanumeric values in Options field — record sent for authorization', async () => {
+  test('[TC_012] create rating parameter with data type Option — record in table after submission', async () => {
     await ratingParameterPage.openAddModal();
     await ratingParameterPage.fillRequiredFieldsWithDataType(ratingParameterOptionData);
     // Dependency validation: Options and Option Tooltips conditional fields must be visible
@@ -143,6 +197,10 @@ test.describe('Rating Parameter', () => {
     await ratingParameterPage.verifyAddButtonEnabled();
     await ratingParameterPage.submitAddForm();
     await ratingParameterPage.verifyPendingAuthToast();
+    // Verify: record appears in table (pending or active)
+    await ratingParameterPage.goto();
+    await ratingParameterPage.table.search(ratingParameterOptionData.code);
+    await ratingParameterPage.table.verifyRowExistsByCellText(ratingParameterOptionData.code);
   });
 
   // ─── TC_013 ─────────────────────────────────────────────────────────────────
@@ -159,14 +217,23 @@ test.describe('Rating Parameter', () => {
   });
 
   // ─── TC_015 ─────────────────────────────────────────────────────────────────
-  test('[TC_015] update record and click update button shows success or pending authorization message', async () => {
+  test('[TC_015] update record — toast shown and updated description visible in table', async () => {
     await ratingParameterPage.editRatingParameter(
       knownExistingRatingParameterCode,
       ratingParameterEditData.updatedDescription,
     );
-    // Check notification immediately after clicking Update (before modal auto-closes)
     await ratingParameterPage.verifySuccessOrPendingMessage();
     await ratingParameterPage.closeEditModalIfOpen();
+    // Verify: updated description visible in table row
+    await ratingParameterPage.goto();
+    await ratingParameterPage.table.search(knownExistingRatingParameterCode);
+    const editedRow = page.locator('table tbody tr').filter({ hasText: knownExistingRatingParameterCode });
+    // Expected: row with knownExistingRatingParameterCode is visible in table after edit
+    // Actual if fails: row not found — edit may not have been applied or record is in pending state
+    await expect(editedRow.first(), `Expected: row with code "${knownExistingRatingParameterCode}" visible in table after edit | Actual: row not found`).toBeVisible({ timeout: 8000 });
+    // Expected: row contains the updated description value
+    // Actual if fails: row shows old description or no match — edit not reflected in table
+    await expect(editedRow.first(), `Expected: row to contain updated description "${ratingParameterEditData.updatedDescription}" | Actual: row missing updated text`).toContainText(ratingParameterEditData.updatedDescription);
   });
 
   // ─── TC_016 ─────────────────────────────────────────────────────────────────
@@ -245,19 +312,76 @@ test.describe('Rating Parameter', () => {
     test.skip();
   });
 
-  // ─── TC_024 — checker flow ───────────────────────────────────────────────────
-  test('[TC_024] entries sent for authorization visible on auth screen with status details — checker flow pending', async () => {
-    test.skip();
+  // ─── TC_024 ─────────────────────────────────────────────────────────────────
+  test('[TC_024] edit sends for authorization — entry visible with Edit action on auth screen', async () => {
+    if (!CHECKER_ENABLED) { test.skip(true, 'CHECKER_ENABLED=false — set env var to run'); return; }
+
+    // ── Maker: edit record ─────────────────────────────────────────────────────
+    await ratingParameterPage.editRatingParameter(
+      knownExistingRatingParameterCode,
+      ratingParameterEditData.updatedDescription,
+    );
+    await ratingParameterPage.verifySuccessOrPendingMessage();
+    await ratingParameterPage.closeEditModalIfOpen();
+
+    // ── Checker: verify edit entry visible ────────────────────────────────────
+    const checkerCtx = await page.context().browser()!.newContext({ baseURL });
+    const checkerPage = await checkerCtx.newPage();
+    await new LoginPage(checkerPage).goto();
+    await new LoginPage(checkerPage).loginAs(users.checker.username, users.checker.password);
+    const authPage = new AuthorizationPage(checkerPage);
+    await authPage.goto();
+    await authPage.verifyRecordVisible(knownExistingRatingParameterCode);
+    await authPage.verifyRecordDetails(knownExistingRatingParameterCode, 'Edit');
+    await checkerCtx.close();
   });
 
-  // ─── TC_025 — checker flow ───────────────────────────────────────────────────
-  test('[TC_025] rejected entries are removed from auth screen — checker flow pending', async () => {
-    test.skip();
+  // ─── TC_025 ─────────────────────────────────────────────────────────────────
+  test('[TC_025] checker rejects edit — entry removed from auth screen and original value preserved', async () => {
+    if (!CHECKER_ENABLED) { test.skip(true, 'CHECKER_ENABLED=false — set env var to run'); return; }
+
+    // ── Maker: edit record ─────────────────────────────────────────────────────
+    await ratingParameterPage.editRatingParameter(
+      knownExistingRatingParameterCode,
+      ratingParameterEditData.updatedDescription,
+    );
+    await ratingParameterPage.closeEditModalIfOpen();
+
+    // ── Checker: reject ────────────────────────────────────────────────────────
+    const checkerCtx = await page.context().browser()!.newContext({ baseURL });
+    const checkerPage = await checkerCtx.newPage();
+    await new LoginPage(checkerPage).goto();
+    await new LoginPage(checkerPage).loginAs(users.checker.username, users.checker.password);
+    const authPage = new AuthorizationPage(checkerPage);
+    await authPage.goto();
+    await authPage.verifyRecordVisible(knownExistingRatingParameterCode);
+    await authPage.rejectRecord(knownExistingRatingParameterCode);
+    await authPage.verifyRecordNotVisible(knownExistingRatingParameterCode);
+    await checkerCtx.close();
   });
 
-  // ─── TC_026 — checker flow ───────────────────────────────────────────────────
-  test('[TC_026] delete record sends for authorization — checker flow pending', async () => {
-    test.skip();
+  // ─── TC_026 ─────────────────────────────────────────────────────────────────
+  test('[TC_026] delete record sends for authorization — pending toast and delete entry on auth screen', async () => {
+    if (!CHECKER_ENABLED) { test.skip(true, 'CHECKER_ENABLED=false — set env var to run'); return; }
+
+    // ── Maker: confirm delete → sends for auth ────────────────────────────────
+    await ratingParameterPage.table.clickRowAction(knownExistingRatingParameterCode, 'ph-trash');
+    await page.getByRole('button', { name: /^yes$/i }).first().waitFor({ state: 'visible', timeout: 5000 });
+    await page.getByRole('button', { name: /^yes$/i }).first().click();
+    const toast = page.locator('p-toast .p-toast-message').first();
+    await expect(toast).toBeVisible({ timeout: 8000 });
+    await expect(toast).toContainText(/pending|authoris/i);
+
+    // ── Checker: verify delete request visible ────────────────────────────────
+    const checkerCtx = await page.context().browser()!.newContext({ baseURL });
+    const checkerPage = await checkerCtx.newPage();
+    await new LoginPage(checkerPage).goto();
+    await new LoginPage(checkerPage).loginAs(users.checker.username, users.checker.password);
+    const authPage = new AuthorizationPage(checkerPage);
+    await authPage.goto();
+    await authPage.verifyRecordVisible(knownExistingRatingParameterCode);
+    await authPage.verifyRecordDetails(knownExistingRatingParameterCode, 'Delete');
+    await checkerCtx.close();
   });
 
   // ─── TC_027 ─────────────────────────────────────────────────────────────────
@@ -299,14 +423,23 @@ test.describe('Rating Parameter', () => {
   });
 
   // ─── TC_030 ─────────────────────────────────────────────────────────────────
-  test('[TC_030] edited entry is updated as per the changes made', async () => {
+  test('[TC_030] edited entry is updated — toast shown and updated description visible in table', async () => {
     await ratingParameterPage.editRatingParameter(
       knownExistingRatingParameterCode,
       ratingParameterEditData.updatedDescription,
     );
-    // Check notification immediately after clicking Update (before modal auto-closes)
     await ratingParameterPage.verifySuccessOrPendingMessage();
     await ratingParameterPage.closeEditModalIfOpen();
+    // Verify: updated description visible in table row
+    await ratingParameterPage.goto();
+    await ratingParameterPage.table.search(knownExistingRatingParameterCode);
+    const editedRow = page.locator('table tbody tr').filter({ hasText: knownExistingRatingParameterCode });
+    // Expected: row with knownExistingRatingParameterCode is visible in table after edit
+    // Actual if fails: row not found — edit may not have been applied or record is in pending state
+    await expect(editedRow.first(), `Expected: row with code "${knownExistingRatingParameterCode}" visible in table after edit | Actual: row not found`).toBeVisible({ timeout: 8000 });
+    // Expected: row contains the updated description value
+    // Actual if fails: row shows old description or no match — edit not reflected in table
+    await expect(editedRow.first(), `Expected: row to contain updated description "${ratingParameterEditData.updatedDescription}" | Actual: row missing updated text`).toContainText(ratingParameterEditData.updatedDescription);
   });
 
   // ─── TC_031 ─────────────────────────────────────────────────────────────────
@@ -411,11 +544,15 @@ test.describe('Rating Parameter', () => {
   });
 
   // ─── TC_044 — Add new record (actual create with pending auth) ────────────────
-  test('[TC_044] fill all required fields and submit add form — record sent for authorization', async () => {
+  test('[TC_044] fill all required fields and submit — record appears in table after submission', async () => {
     await ratingParameterPage.openAddModal();
     await ratingParameterPage.fillRequiredFieldsWithDataType(ratingParameterData);
     await ratingParameterPage.verifyAddButtonEnabled();
     await ratingParameterPage.submitAddForm();
     await ratingParameterPage.verifyPendingAuthToast();
+    // Verify: record appears in table (pending or active)
+    await ratingParameterPage.goto();
+    await ratingParameterPage.table.search(ratingParameterData.code);
+    await ratingParameterPage.table.verifyRowExistsByCellText(ratingParameterData.code);
   });
 });

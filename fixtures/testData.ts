@@ -289,3 +289,8 @@ export const vendorUser = {
   username: process.env.VENDOR_USERNAME ?? 'vendor',
   password: process.env.VENDOR_PASSWORD ?? 'Kalypto@2026',
 };
+
+// ─── Checker flow ─────────────────────────────────────────────────────────────
+// Set CHECKER_ENABLED=true in env / CI once the Authorization screen is deployed.
+// All checker-gated tests auto-skip when this is false.
+export const CHECKER_ENABLED = process.env.CHECKER_ENABLED === 'true';

@@ -205,7 +205,7 @@ test.describe('Industry Median (Industry Parameter)', () => {
   });
 
   // ─── TC_020 ─────────────────────────────────────────────────────────────────
-  test('[TC_020] adding a valid record sends it for authorization with success or pending toast', async () => {
+  test('[TC_020] adding a valid record — toast shown and record appears in table', async () => {
     await imPage.openAddModal();
     const opts = await imPage.getIndustryDropdownOptions();
     if (opts.length === 0) { await imPage.closeOpenModal(); test.skip(); return; }
@@ -213,6 +213,10 @@ test.describe('Industry Median (Industry Parameter)', () => {
     await page.locator('[role="dialog"]').getByRole('button', { name: /^save$/i }).click();
     await page.locator('[role="dialog"]').waitFor({ state: 'hidden', timeout: 8000 }).catch(() => {});
     await imPage.verifySuccessOrPendingMessage();
+    // Verify: record appears in table (pending or active)
+    await imPage.goto();
+    await imPage.table.search(industryMedianData.financialYear);
+    await imPage.table.verifyRowExistsByCellText(industryMedianData.financialYear);
   });
 
   // ─── TC_021 ─────────────────────────────────────────────────────────────────
@@ -242,10 +246,18 @@ test.describe('Industry Median (Industry Parameter)', () => {
   });
 
   // ─── TC_023b ─────────────────────────────────────────────────────────────────
-  test('[TC_023b] confirming delete sends record for authorization with success or pending toast', async () => {
+  test('[TC_023b] confirming delete sends for authorization — toast shown, row count decreases', async () => {
+    await imPage.goto();
+    const countBefore = await imPage.table.getRowCount();
     await imPage.openDeleteConfirmation(knownExistingIndustryMedianIndustry);
     await imPage.confirmDelete();
     await imPage.verifySuccessOrPendingMessage();
+    // Verify: row count decreased (record removed or pending deletion)
+    await imPage.goto();
+    const countAfter = await imPage.table.getRowCount();
+    // Expected: row count decreases after delete (record removed or marked for pending deletion)
+    // Actual if fails: row count unchanged — record may still be in table or delete failed
+    expect(countAfter, `Expected: row count < ${countBefore} after delete | Actual: row count = ${countAfter} (unchanged)`).toBeLessThan(countBefore);
   });
 
   // ─── TC_024 ─────────────────────────────────────────────────────────────────
@@ -284,12 +296,19 @@ test.describe('Industry Median (Industry Parameter)', () => {
   });
 
   // ─── TC_029 ─────────────────────────────────────────────────────────────────
-  test('[TC_029] editing a record and clicking Update sends it for authorization', async () => {
+  test('[TC_029] editing a record — toast shown and updated financial year visible in table', async () => {
     await imPage.editAndUpdate(
       knownExistingIndustryMedianIndustry,
       industryMedianEditData.updatedFinancialYear,
     );
     await imPage.verifySuccessOrPendingMessage();
+    // Verify: updated financial year visible in table row
+    await imPage.goto();
+    await imPage.table.search(industryMedianEditData.updatedFinancialYear);
+    const editedRow = page.locator('table tbody tr').filter({ hasText: industryMedianEditData.updatedFinancialYear });
+    // Expected: row with updatedFinancialYear is visible in table after edit
+    // Actual if fails: row not found — edit may not have been applied or financial year not updated in table
+    await expect(editedRow.first(), `Expected: row with updated financial year "${industryMedianEditData.updatedFinancialYear}" visible in table after edit | Actual: row not found`).toBeVisible({ timeout: 8000 });
   });
 
   // ─── TC_030 ─────────────────────────────────────────────────────────────────

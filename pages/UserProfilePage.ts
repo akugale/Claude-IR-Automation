@@ -354,6 +354,33 @@ export class UserProfilePage extends BasePage {
     });
   }
 
+  async submitEditForm(): Promise<void> {
+    const dialog = this.page.locator('[role="dialog"]').first();
+    const saveBtn = dialog.getByRole('button', { name: /^save$|^update$|^submit$/i }).first();
+    await saveBtn.waitFor({ state: 'visible', timeout: 5000 });
+    await saveBtn.click();
+    await dialog.waitFor({ state: 'hidden', timeout: 8000 }).catch(() => {});
+  }
+
+  async confirmDelete(): Promise<void> {
+    const yesBtn = this.page.getByRole('button', { name: /^yes$/i }).first();
+    await yesBtn.waitFor({ state: 'visible', timeout: 5000 });
+    await yesBtn.click();
+    await this.page.locator('[role="alertdialog"], [role="dialog"]')
+      .filter({ hasText: /delete|confirm/i })
+      .waitFor({ state: 'hidden', timeout: 8000 })
+      .catch(() => {});
+    await this.page.locator('p-toast .p-toast-message, .p-toast-message').first()
+      .waitFor({ state: 'visible', timeout: 8000 })
+      .catch(() => {});
+  }
+
+  async waitForDialogsAndToastsClosed(): Promise<void> {
+    await this.page.locator('.p-dialog-mask').waitFor({ state: 'hidden', timeout: 5000 }).catch(() => {});
+    await this.page.locator('p-toast .p-toast-message').waitFor({ state: 'hidden', timeout: 5000 }).catch(() => {});
+    await this.page.waitForTimeout(300);
+  }
+
   async cancelDeleteConfirmation(): Promise<void> {
     const noBtn = this.page.getByRole('button', { name: /^no$/i });
     if (await noBtn.isVisible().catch(() => false)) { await noBtn.click(); return; }

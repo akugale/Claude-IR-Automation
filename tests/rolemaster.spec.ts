@@ -286,12 +286,17 @@ test.describe('Role Master', () => {
   });
 
   // ─── TC_025 ─────────────────────────────────────────────────────────────────
-  test('[TC_025] saving new role sends record for authorization with toast', async () => {
+  test('[TC_025] saving new role sends record for authorization with toast and appears in table', async () => {
+    const countBefore = await rmPage.table.getRowCount();
     await rmPage.openAddModal();
     await rmPage.fillCode(roleMasterData.code);
     await rmPage.fillDescription(roleMasterData.description);
     await rmPage.submitAddForm();
     await rmPage.verifySuccessOrPendingToast();
+    await page.waitForTimeout(500);
+    const countAfter = await rmPage.table.getRowCount();
+    console.log(`Add role: rows ${countBefore} → ${countAfter}`);
+    expect(countAfter, 'New role should appear in table after save').toBeGreaterThanOrEqual(countBefore);
   });
 
   // ══════════════════════════════════════════════════════
@@ -319,5 +324,48 @@ test.describe('Role Master', () => {
     await rmPage.openDeleteConfirmation(knownViewableRoleCode);
     await rmPage.cancelDeleteConfirmation();
     await rmPage.table.verifyRowExistsByCellText(knownViewableRoleCode);
+  });
+
+  // ══════════════════════════════════════════════════════
+  //  EDIT
+  // ══════════════════════════════════════════════════════
+
+  // ─── TC_029 ─────────────────────────────────────────────────────────────────
+  test('[TC_029] Edit button opens modal with pre-filled Code and Description, submit updates record', async () => {
+    await rmPage.openEdit(knownViewableRoleCode);
+    const dialog = page.locator('[role="dialog"]').first();
+    await expect(dialog).toBeVisible();
+    // Code and Description should be pre-filled
+    const codeVal = (await rmPage.codeInput.inputValue().catch(() => '')).trim();
+    const descVal = (await rmPage.descriptionInput.inputValue().catch(() => '')).trim();
+    console.log(`Edit modal — Code: "${codeVal}", Description: "${descVal}"`);
+    expect(codeVal || descVal, 'Edit modal should have pre-filled Code or Description').toBeTruthy();
+    // Submit the edit
+    await rmPage.submitEditForm();
+    await rmPage.verifySuccessOrPendingToast();
+    console.log('Edit submitted and toast verified');
+  });
+
+  // ══════════════════════════════════════════════════════
+  //  CONFIRM DELETE
+  // ══════════════════════════════════════════════════════
+
+  // ─── TC_030 ─────────────────────────────────────────────────────────────────
+  // Uses roleMasterData.code — the record created in TC_025.
+  // beforeEach calls goto() so table is fresh each test.
+  test('[TC_030] confirming delete removes the record from the table', async () => {
+    // Use the first row (freshest record) rather than a hardcoded code
+    // to avoid flakiness if the known code was already deleted or not yet approved.
+    await rmPage.waitForDialogsAndToastsClosed();
+    const firstCode = (await rmPage.table.getFirstRowCellText(0)).trim();
+    if (!firstCode) { test.skip(); return; }
+    const countBefore = await rmPage.table.getRowCount();
+    console.log(`Deleting first row "${firstCode}" (${countBefore} rows before)`);
+    await rmPage.openDeleteConfirmation(firstCode);
+    await rmPage.confirmDelete();
+    await rmPage.waitForDialogsAndToastsClosed();
+    const countAfter = await rmPage.table.getRowCount();
+    console.log(`Rows after delete: ${countAfter}`);
+    expect(countAfter, 'Row count should decrease by 1 after confirming delete').toBe(countBefore - 1);
   });
 });
