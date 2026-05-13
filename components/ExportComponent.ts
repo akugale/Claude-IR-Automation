@@ -44,7 +44,8 @@ export class ExportComponent {
   }
 
   async downloadAndVerifyPdf(): Promise<void> {
-    const downloadPromise = this.page.waitForEvent('download', { timeout: 15000 });
+    // Large datasets (e.g. 45k+ records) require multiple paginated API calls before download starts
+    const downloadPromise = this.page.waitForEvent('download', { timeout: 120000 });
     await (await this.getPdfBtn()).click();
     const download = await downloadPromise;
     const path = await download.path();
@@ -55,7 +56,8 @@ export class ExportComponent {
   }
 
   async downloadAndVerifyExcel(): Promise<void> {
-    const downloadPromise = this.page.waitForEvent('download', { timeout: 15000 });
+    // Large datasets (e.g. 45k+ records) require multiple paginated API calls before download starts
+    const downloadPromise = this.page.waitForEvent('download', { timeout: 120000 });
     await (await this.getExcelBtn()).click();
     const download = await downloadPromise;
     const path = await download.path();
@@ -67,7 +69,8 @@ export class ExportComponent {
 
   // Returns the number of data rows in the first sheet of the downloaded Excel file
   async downloadExcelAndGetRowCount(): Promise<number> {
-    const downloadPromise = this.page.waitForEvent('download', { timeout: 15000 });
+    // Large datasets (e.g. 45k+ records) require multiple paginated API calls before download starts
+    const downloadPromise = this.page.waitForEvent('download', { timeout: 120000 });
     await (await this.getExcelBtn()).click();
     const download = await downloadPromise;
     const filePath = await download.path();
@@ -85,7 +88,8 @@ export class ExportComponent {
 
   // Returns extracted text from the downloaded PDF file
   async downloadPdfAndGetText(): Promise<string> {
-    const downloadPromise = this.page.waitForEvent('download', { timeout: 15000 });
+    // Large datasets (e.g. 45k+ records) require multiple paginated API calls before download starts
+    const downloadPromise = this.page.waitForEvent('download', { timeout: 120000 });
     await this.page.locator('button.export-pdf').click();
     const download = await downloadPromise;
     const filePath = await download.path();

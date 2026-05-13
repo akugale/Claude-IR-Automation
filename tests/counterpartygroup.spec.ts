@@ -97,6 +97,29 @@ test.describe('Counterparty Group', () => {
     await verifyExportExcelAllRecords(counterpartyGroupPage.export, counterpartyGroupPage.paginator);
   });
 
+  // ─── TC_014 ─────────────────────────────────────────────────────────────────
+  test('[TC_014] clicking View action opens read-only modal for a record', async () => {
+    // Get first available code dynamically — no hardcoded fixture needed
+    const firstCode = (await counterpartyGroupPage.table.getFirstRowCellText(0)).trim();
+    expect(firstCode, 'Table must have at least one record to run view test').toBeTruthy();
+    await counterpartyGroupPage.openViewModal(firstCode);
+    // Expected: view modal opens showing record details
+    // Actual if fails: modal did not open — view action button missing or navigation failed
+    await expect(page.locator('[role="dialog"]'), `Expected: view modal visible after clicking view on "${firstCode}" | Actual: modal not found`).toBeVisible({ timeout: 8000 });
+    await page.keyboard.press('Escape');
+  });
+
+  // ─── TC_015 ─────────────────────────────────────────────────────────────────
+  test('[TC_015] view modal fields are read-only and cannot be edited', async () => {
+    const firstCode = (await counterpartyGroupPage.table.getFirstRowCellText(0)).trim();
+    expect(firstCode, 'Table must have at least one record to run view test').toBeTruthy();
+    await counterpartyGroupPage.openViewModal(firstCode);
+    // Expected: all input fields inside modal are disabled (view-only screen, no edit allowed)
+    // Actual if fails: input is enabled — modal opened in edit mode instead of view mode
+    await counterpartyGroupPage.verifyViewModalIsReadOnly();
+    await page.keyboard.press('Escape');
+  });
+
   // ─── TC_025 ─────────────────────────────────────────────────────────────────
   test('[TC_025a] default items per page should be 10', async () => {
     const defaultValue = await counterpartyGroupPage.paginator.getItemsPerPageValue();

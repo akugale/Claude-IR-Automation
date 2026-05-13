@@ -9,6 +9,9 @@ export class CounterpartyGroupPage extends BasePage {
   readonly paginator: PaginatorComponent;
   readonly export: ExportComponent;
 
+  readonly codeInput: Locator;
+  readonly descriptionInput: Locator;
+
   private readonly mainNavigation: Locator;
 
   constructor(private readonly page: Page) {
@@ -16,6 +19,9 @@ export class CounterpartyGroupPage extends BasePage {
     this.table = new TableComponent(page, 'table', 'input[placeholder*="Search"], input[type="search"]');
     this.paginator = new PaginatorComponent(page);
     this.export = new ExportComponent(page);
+
+    this.codeInput        = page.locator('p-dialog').getByPlaceholder(/enter code/i).first();
+    this.descriptionInput = page.locator('p-dialog').getByPlaceholder(/enter description/i).first();
 
     this.mainNavigation = page.getByRole('navigation', { name: /main navigation/i });
   }
@@ -42,6 +48,24 @@ export class CounterpartyGroupPage extends BasePage {
     // Read-only screen — no add button expected
     await expect(this.page.getByRole('button', { name: /^\+$/ })).toHaveCount(0);
     await expect(this.page.getByRole('button', { name: /^add$/i })).toHaveCount(0);
+  }
+
+  // ─── TC_014 / TC_015 — View modal ────────────────────────────────────────────
+
+  async openViewModal(code: string): Promise<void> {
+    await this.table.clickRowAction(code, 'ph-eye');
+    await expect(this.page.locator('[role="dialog"]')).toBeVisible({ timeout: 8000 });
+  }
+
+  async verifyViewModalIsReadOnly(): Promise<void> {
+    const dialog = this.page.locator('[role="dialog"]');
+    await expect(dialog).toBeVisible();
+    // All inputs inside dialog must be disabled (read-only view)
+    const inputs = dialog.locator('input, textarea');
+    const count = await inputs.count();
+    for (let i = 0; i < count; i++) {
+      await expect(inputs.nth(i), `Input ${i} should be disabled in view modal`).toBeDisabled();
+    }
   }
 
   // ─── Private ─────────────────────────────────────────────────────────────────

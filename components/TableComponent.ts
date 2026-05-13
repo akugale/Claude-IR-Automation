@@ -186,7 +186,14 @@ export class TableComponent {
     const btnCls  = (await btn.getAttribute('class')        .catch(() => '')) ?? '';
     const btnData = (await btn.getAttribute('data-p-active').catch(() => '')) ?? '';
     const thCls   = (await th.getAttribute('class')         .catch(() => '')) ?? '';
+
+    // PrimeNG v18: active filter indicator = SVG icon swaps from "filter" → "filter-fill"
+    // No CSS class or data-p-active attribute changes — only the SVG data-p-icon attribute
+    const svgIcon = (await btn.locator('svg').first().getAttribute('data-p-icon').catch(() => '')) ?? '';
+    const isFillIcon = svgIcon === 'filter-fill';
+
     return (
+      isFillIcon ||                          // PrimeNG v18 active indicator
       btnCls.includes('active') ||
       btnCls.includes('p-highlight') ||
       btnData === 'true' ||

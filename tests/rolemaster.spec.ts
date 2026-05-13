@@ -274,7 +274,9 @@ test.describe('Role Master', () => {
     await rmPage.openAddModal();
     await rmPage.fillCode(roleMasterData.code);
     await rmPage.cancelModal();
-    await expect(page.locator('p-dialog')).not.toBeVisible({ timeout: 5000 });
+    // Multiple p-dialog elements may exist in DOM — use first() to avoid strict mode violation
+    // Expected: dialog closed after cancel | Actual if fails: dialog still visible
+    await expect(page.locator('p-dialog').first()).not.toBeVisible({ timeout: 5000 });
   });
 
   // ─── TC_024 ─────────────────────────────────────────────────────────────────
@@ -305,6 +307,13 @@ test.describe('Role Master', () => {
 
   // ─── TC_026 ─────────────────────────────────────────────────────────────────
   test('[TC_026] Profile popup shows User Login, Branch and Sub Branch Access columns', async () => {
+    // BUG: Profile/User-list button does not exist in Actions column (confirmed via DOM inspection)
+    // ANA row only has: ph-eye, ph-pencil-simple, ph-trash — no profile icon
+    // Expected: Profile button visible in Actions | Actual: button missing — not yet implemented
+    test.info().annotations.push({
+      type: 'bug',
+      description: 'Profile button missing from Role Master Actions column — ph-users/ph-user-list/ph-identification-card not found in DOM (ANA row). Feature not yet implemented in UI.',
+    });
     await rmPage.openProfileModal(knownViewableRoleCode);
     await rmPage.verifyProfileModalContents();
   });
@@ -342,8 +351,15 @@ test.describe('Role Master', () => {
     expect(codeVal || descVal, 'Edit modal should have pre-filled Code or Description').toBeTruthy();
     // Submit the edit
     await rmPage.submitEditForm();
+    // Expected: toast shown confirming edit submitted (success or pending approval)
+    // Actual if fails: no toast — app gave no feedback after edit submit (app bug)
     await rmPage.verifySuccessOrPendingToast();
     console.log('Edit submitted and toast verified');
+    // Verify record still exists in table after edit (not deleted or corrupted by submit)
+    // Expected: row with code visible after edit (maker-checker: edit pending, original record stays)
+    // Actual if fails: row gone — edit incorrectly deleted or corrupted record
+    await rmPage.goto();
+    await rmPage.table.verifyRowExistsByCellText(knownViewableRoleCode);
   });
 
   // ══════════════════════════════════════════════════════
@@ -364,8 +380,17 @@ test.describe('Role Master', () => {
     await rmPage.openDeleteConfirmation(firstCode);
     await rmPage.confirmDelete();
     await rmPage.waitForDialogsAndToastsClosed();
+    // Reload fresh table — don't rely on in-page DOM state or toast
+    // Expected: record removed from table after delete (maker sends to pending, row disappears from view)
+    // Actual if fails: row still visible — delete not applied or awaiting checker approval
+    await rmPage.goto();
     const countAfter = await rmPage.table.getRowCount();
-    console.log(`Rows after delete: ${countAfter}`);
-    expect(countAfter, 'Row count should decrease by 1 after confirming delete').toBe(countBefore - 1);
+    console.log(`Rows after reload: ${countAfter} (was ${countBefore})`);
+    await expect(
+      page.locator('table tbody tr').filter({
+        has: page.locator('td:first-child').filter({ hasText: new RegExp(`^\\s*${firstCode.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*$`) }),
+      }),
+      `Expected: row "${firstCode}" removed after delete | Actual: row still visible in table`,
+    ).toHaveCount(0);
   });
 });
