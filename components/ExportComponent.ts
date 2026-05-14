@@ -4,17 +4,35 @@ export class ExportComponent {
   constructor(private readonly page: Page) {}
 
   private async getPdfBtn() {
-    const byClass = this.page.locator('button.export-pdf');
-    if (await byClass.isVisible({ timeout: 2000 }).catch(() => false)) return byClass;
-    // Fallback: first button in heading row (icon-only export buttons)
-    return this.page.locator('h2, h3, [role="heading"]').locator('..').locator('button').nth(0);
+    // Both tab panels are in DOM simultaneously — find the first VISIBLE export-pdf button
+    const buttons = this.page.locator('button.export-pdf');
+    const count = await buttons.count();
+    for (let i = 0; i < count; i++) {
+      if (await buttons.nth(i).isVisible().catch(() => false)) return buttons.nth(i);
+    }
+    // Fallback: first button in any visible heading row
+    const headingBtns = this.page.locator('h2, h3, [role="heading"]').locator('..').locator('button');
+    const btnCount = await headingBtns.count();
+    for (let i = 0; i < btnCount; i++) {
+      if (await headingBtns.nth(i).isVisible().catch(() => false)) return headingBtns.nth(i);
+    }
+    return buttons.first();
   }
 
   private async getExcelBtn() {
-    const byClass = this.page.locator('button.export-excel');
-    if (await byClass.isVisible({ timeout: 2000 }).catch(() => false)) return byClass;
-    // Fallback: second button in heading row
-    return this.page.locator('h2, h3, [role="heading"]').locator('..').locator('button').nth(1);
+    // Both tab panels are in DOM simultaneously — find the first VISIBLE export-excel button
+    const buttons = this.page.locator('button.export-excel');
+    const count = await buttons.count();
+    for (let i = 0; i < count; i++) {
+      if (await buttons.nth(i).isVisible().catch(() => false)) return buttons.nth(i);
+    }
+    // Fallback: second button in any visible heading row
+    const headingBtns = this.page.locator('h2, h3, [role="heading"]').locator('..').locator('button');
+    const btnCount = await headingBtns.count();
+    for (let i = 1; i < btnCount; i++) {
+      if (await headingBtns.nth(i).isVisible().catch(() => false)) return headingBtns.nth(i);
+    }
+    return buttons.first();
   }
 
   async triggerPdf(): Promise<void> {

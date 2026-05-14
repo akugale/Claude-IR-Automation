@@ -1,0 +1,7 @@
+{
+  "playwright.reuseBrowser": false,
+  "playwright.showTrace": false,
+  "playwright.env": {},
+  "editor.formatOnSave": true,
+  "playwright.testingHoverEnabled": true
+}

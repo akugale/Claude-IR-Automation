@@ -1,16 +1,21 @@
-import { expect, Page } from '@playwright/test';
+import { expect, Locator, Page } from '@playwright/test';
 
 export class PaginatorComponent {
-  constructor(private readonly page: Page) {}
+  /** If a container Locator is provided all lookups are scoped to it (e.g. one of multiple tab panels). */
+  private readonly root: Page | Locator;
+
+  constructor(private readonly page: Page, container?: Locator) {
+    this.root = container ?? page;
+  }
 
   // ─── Items per page ──────────────────────────────────────────────────────────
 
   async getItemsPerPageValue(): Promise<string> {
-    return this.page.locator('p-select.p-paginator-rpp-dropdown .p-select-label').innerText();
+    return this.root.locator('p-select.p-paginator-rpp-dropdown .p-select-label').innerText();
   }
 
   async getItemsPerPageOptions(): Promise<string[]> {
-    await this.page.locator('p-select.p-paginator-rpp-dropdown .p-select-dropdown').click();
+    await this.root.locator('p-select.p-paginator-rpp-dropdown .p-select-dropdown').click();
     const options = this.page.locator('[role="listbox"] [role="option"]');
     await options.first().waitFor();
     const values = await options.allInnerTexts();
@@ -19,7 +24,7 @@ export class PaginatorComponent {
   }
 
   async changeItemsPerPage(size: number): Promise<void> {
-    await this.page.locator('p-select.p-paginator-rpp-dropdown .p-select-dropdown').click();
+    await this.root.locator('p-select.p-paginator-rpp-dropdown .p-select-dropdown').click();
     await this.page
       .locator('[role="listbox"] [role="option"]')
       .filter({ hasText: new RegExp(`^${size}$`) })
@@ -29,7 +34,7 @@ export class PaginatorComponent {
   // ─── Page info ───────────────────────────────────────────────────────────────
 
   async getInfoText(): Promise<string> {
-    return this.page.locator('.p-paginator-current').innerText();
+    return this.root.locator('.p-paginator-current').innerText();
   }
 
   // Parses total record count from pagination info text e.g. "Showing 1-10 of 157"
@@ -41,7 +46,7 @@ export class PaginatorComponent {
   }
 
   async getActivePageNumber(): Promise<string> {
-    return this.page.locator('.p-paginator-page-selected').innerText();
+    return this.root.locator('.p-paginator-page-selected').innerText();
   }
 
   // ─── Page navigation ─────────────────────────────────────────────────────────
@@ -49,7 +54,7 @@ export class PaginatorComponent {
   async clickPageNumber(pageNum: number): Promise<void> {
     // PrimeNG v18 page buttons may be hidden (display:none) in condensed layout.
     // Use evaluate/dispatchEvent to bypass Playwright visibility checks entirely.
-    const pageButton = this.page
+    const pageButton = this.root
       .locator(`[data-pc-section="page"][aria-label="${pageNum}"]`)
       .first();
     await pageButton.waitFor({ state: 'attached', timeout: 5000 });
@@ -57,41 +62,41 @@ export class PaginatorComponent {
   }
 
   async clickFirstPage(): Promise<void> {
-    await this.page.locator('button[aria-label="First Page"]').click();
+    await this.root.locator('button[aria-label="First Page"]').click();
   }
 
   async clickLastPage(): Promise<void> {
-    await this.page.locator('button[aria-label="Last Page"]').click();
+    await this.root.locator('button[aria-label="Last Page"]').click();
   }
 
   async clickNextPage(): Promise<void> {
-    await this.page.locator('button[aria-label="Next Page"]').click();
+    await this.root.locator('button[aria-label="Next Page"]').click();
   }
 
   async clickPreviousPage(): Promise<void> {
-    await this.page.locator('button[aria-label="Previous Page"]').click();
+    await this.root.locator('button[aria-label="Previous Page"]').click();
   }
 
   async isLastPage(): Promise<boolean> {
-    const cls = await this.page.locator('button[aria-label="Next Page"]').getAttribute('class') ?? '';
+    const cls = await this.root.locator('button[aria-label="Next Page"]').getAttribute('class') ?? '';
     return cls.includes('p-disabled');
   }
 
   // ─── Disabled state assertions ───────────────────────────────────────────────
 
   async verifyFirstPageDisabled(): Promise<void> {
-    await expect(this.page.locator('button[aria-label="First Page"]')).toHaveClass(/p-disabled/);
+    await expect(this.root.locator('button[aria-label="First Page"]')).toHaveClass(/p-disabled/);
   }
 
   async verifyLastPageDisabled(): Promise<void> {
-    await expect(this.page.locator('button[aria-label="Last Page"]')).toHaveClass(/p-disabled/);
+    await expect(this.root.locator('button[aria-label="Last Page"]')).toHaveClass(/p-disabled/);
   }
 
   async verifyPreviousPageDisabled(): Promise<void> {
-    await expect(this.page.locator('button[aria-label="Previous Page"]')).toHaveClass(/p-disabled/);
+    await expect(this.root.locator('button[aria-label="Previous Page"]')).toHaveClass(/p-disabled/);
   }
 
   async verifyNextPageDisabled(): Promise<void> {
-    await expect(this.page.locator('button[aria-label="Next Page"]')).toHaveClass(/p-disabled/);
+    await expect(this.root.locator('button[aria-label="Next Page"]')).toHaveClass(/p-disabled/);
   }
 }
