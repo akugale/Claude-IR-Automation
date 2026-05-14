@@ -3,14 +3,18 @@ import { expect, Locator, Page } from '@playwright/test';
 export class TableComponent {
   private readonly table: Locator;
   private readonly searchInput: Locator;
+  /** Scoped root — either the full page or a specific container (e.g. active tab panel). */
+  private readonly root: Page | Locator;
 
   constructor(
     private readonly page: Page,
     tableSelector: string,
-    searchInputSelector: string
+    searchInputSelector: string,
+    container?: Locator,
   ) {
-    this.table = this.page.locator(tableSelector);
-    this.searchInput = this.page.locator(searchInputSelector);
+    this.root = container ?? page;
+    this.table = this.root.locator(tableSelector);
+    this.searchInput = this.root.locator(searchInputSelector);
   }
 
   // ─── Search ─────────────────────────────────────────────────────────────────
@@ -24,7 +28,7 @@ export class TableComponent {
   // ─── Sort ────────────────────────────────────────────────────────────────────
 
   async sortByColumn(columnName: string): Promise<void> {
-    const th = this.page
+    const th = this.root
       .locator('th.p-datatable-sortable-column')
       .filter({ hasText: columnName })
       .first();
@@ -40,7 +44,9 @@ export class TableComponent {
     // Wait for aria-sort to update (async DOM re-render after click)
     await this.page.waitForFunction(
       (col) => {
+        // Only check sortable columns that are visible (active tab panel) to avoid matching hidden tabs
         const th = Array.from(document.querySelectorAll('th.p-datatable-sortable-column'))
+          .filter(el => (el as HTMLElement).offsetParent !== null) // visible only
           .find(el => el.textContent?.includes(col));
         return th?.getAttribute('aria-sort') !== 'none';
       },
@@ -50,7 +56,7 @@ export class TableComponent {
   }
 
   async getColumnSortOrder(columnName: string): Promise<string | null> {
-    return this.page
+    return this.root
       .locator('th.p-datatable-sortable-column')
       .filter({ hasText: columnName })
       .first()
@@ -94,7 +100,7 @@ export class TableComponent {
   ].join(', ');
 
   async getFilterableColumnNames(): Promise<string[]> {
-    const ths = this.page.locator('th').filter({
+    const ths = this.root.locator('th').filter({
       has: this.page.locator(this.filterBtnSelector),
     });
     const texts = await ths.allInnerTexts();
@@ -104,7 +110,7 @@ export class TableComponent {
   }
 
   async openColumnFilter(columnName: string): Promise<void> {
-    await this.page
+    await this.root
       .locator('th')
       .filter({ hasText: new RegExp(columnName, 'i') })
       .locator(this.filterBtnSelector)
@@ -151,7 +157,8 @@ export class TableComponent {
     await filterInput.fill(value);
     const applyBtn = overlay.getByRole('button', { name: /apply/i });
     if (await applyBtn.isVisible()) {
-      await applyBtn.click();
+      // Use force:true — PrimeNG overlays can re-render after typing, making button temporarily unstable
+      await applyBtn.click({ force: true });
     } else {
       await filterInput.press('Enter');
     }
@@ -159,18 +166,31 @@ export class TableComponent {
   }
 
   // For columns that use a p-select dropdown filter (e.g. boolean/enum columns like Is Locked, Status)
-  // Opens the filter, picks the first real option, applies it, and returns the selected option text
+  // Opens the filter, picks the first real option, applies it, and returns the selected option text.
+  // Skips the match-mode dropdown (Match All/Match Any) and targets the value dropdown.
   async applyDropdownColumnFilter(columnName: string): Promise<string> {
     await this.openColumnFilter(columnName);
     const overlay = await this.getFilterOverlay();
-    const dropdown = overlay.locator('p-select, p-dropdown').first();
-    await dropdown.click();
-    const firstOption = this.page.locator('[role="listbox"] [role="option"]')
-      .filter({ hasText: /\S/ })
-      .first();
-    await firstOption.waitFor({ state: 'visible', timeout: 10000 });
-    const selectedText = (await firstOption.innerText()).trim();
-    await firstOption.click();
+    // The filter overlay contains 2 p-selects: [0]=match-mode (Match All/Any), [1]=value (Yes/No/enum)
+    // Use the LAST p-select, or the one that does NOT contain "Match" options
+    const dropdowns = overlay.locator('p-select, p-dropdown');
+    const count = await dropdowns.count();
+    // Try dropdowns from last to first — value dropdown is typically last
+    let selectedText = '';
+    for (let i = count - 1; i >= 0; i--) {
+      await dropdowns.nth(i).click();
+      const options = this.page.locator('[role="listbox"] [role="option"]').filter({ hasText: /\S/ });
+      const firstOptionText = await options.first().innerText().catch(() => '');
+      // Skip match-mode dropdowns (Match All / Match Any / Contains / Starts with)
+      if (/match all|match any|contains|starts with|ends with|equals|not equals/i.test(firstOptionText)) {
+        await this.page.keyboard.press('Escape');
+        continue;
+      }
+      await options.first().waitFor({ state: 'visible', timeout: 10000 });
+      selectedText = firstOptionText.trim();
+      await options.first().click();
+      break;
+    }
     const applyBtn = overlay.getByRole('button', { name: /apply/i });
     if (await applyBtn.isVisible()) await applyBtn.click();
     await this.page.locator(this.filterOverlaySelector).first().waitFor({ state: 'hidden' }).catch(() => {});
@@ -178,7 +198,7 @@ export class TableComponent {
   }
 
   async isColumnFilterActive(columnName: string): Promise<boolean> {
-    const th = this.page
+    const th = this.root
       .locator('th')
       .filter({ hasText: new RegExp(columnName, 'i') })
       .first();
@@ -204,7 +224,7 @@ export class TableComponent {
 
   async clearColumnFilter(columnName: string): Promise<void> {
     // Single click to open overlay — do NOT call openColumnFilter again (double-click closes it)
-    await this.page
+    await this.root
       .locator('th')
       .filter({ hasText: new RegExp(columnName, 'i') })
       .locator(this.filterBtnSelector)
@@ -238,7 +258,7 @@ export class TableComponent {
   }
 
   async getColumnIndexByName(columnName: string): Promise<number> {
-    const allHeaders = await this.page.locator('th').allInnerTexts();
+    const allHeaders = await this.root.locator('th').allInnerTexts();
     return allHeaders.findIndex(h =>
       h.replace(/\s+/g, ' ').trim().toLowerCase().startsWith(columnName.toLowerCase()),
     );
@@ -273,7 +293,7 @@ export class TableComponent {
   }
 
   async getSortableColumnNames(): Promise<string[]> {
-    const texts = await this.page
+    const texts = await this.root
       .locator('th.p-datatable-sortable-column')
       .allInnerTexts();
     return texts.map(t => t.trim()).filter(t => t.length > 0);
