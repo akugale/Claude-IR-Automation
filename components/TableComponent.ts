@@ -110,9 +110,10 @@ export class TableComponent {
   }
 
   async openColumnFilter(columnName: string): Promise<void> {
+    const escapedName = columnName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     await this.root
       .locator('th')
-      .filter({ hasText: new RegExp(columnName, 'i') })
+      .filter({ hasText: new RegExp(escapedName, 'i') })
       .locator(this.filterBtnSelector)
       .first()
       .click();
@@ -198,9 +199,10 @@ export class TableComponent {
   }
 
   async isColumnFilterActive(columnName: string): Promise<boolean> {
+    const escapedName = columnName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const th = this.root
       .locator('th')
-      .filter({ hasText: new RegExp(columnName, 'i') })
+      .filter({ hasText: new RegExp(escapedName, 'i') })
       .first();
     const btn = th.locator(this.filterBtnSelector).first();
     const btnCls  = (await btn.getAttribute('class')        .catch(() => '')) ?? '';
@@ -224,9 +226,10 @@ export class TableComponent {
 
   async clearColumnFilter(columnName: string): Promise<void> {
     // Single click to open overlay — do NOT call openColumnFilter again (double-click closes it)
+    const escapedName = columnName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     await this.root
       .locator('th')
-      .filter({ hasText: new RegExp(columnName, 'i') })
+      .filter({ hasText: new RegExp(escapedName, 'i') })
       .locator(this.filterBtnSelector)
       .first()
       .click();
