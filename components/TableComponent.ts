@@ -274,6 +274,24 @@ export class TableComponent {
     await expect(row).toBeVisible();
   }
 
+  /** After applying a column filter, asserts ALL visible rows in that column contain the
+   *  filter value (case-insensitive). Fails with a descriptive message if any non-matching
+   *  row is found. Use alongside verifyRowExistsByCellText for complete filter verification. */
+  async verifyAllRowsInColumnContain(columnName: string, value: string): Promise<void> {
+    const colIdx = await this.getColumnIndexByName(columnName);
+    expect(colIdx, `Column "${columnName}" not found in table`).toBeGreaterThanOrEqual(0);
+    const cells = await this.table
+      .locator(`tbody tr td:nth-child(${colIdx + 1})`)
+      .allInnerTexts();
+    expect(cells.length, `No rows visible after filtering "${columnName}" by "${value}"`).toBeGreaterThan(0);
+    for (const cell of cells) {
+      expect(
+        cell.toLowerCase(),
+        `Non-matching row in "${columnName}" column after filter by "${value}": got "${cell}"`,
+      ).toContain(value.toLowerCase());
+    }
+  }
+
   async verifyRowExistsByValues(values: string[]): Promise<void> {
     let row = this.table.locator('tbody tr');
     for (const value of values) {

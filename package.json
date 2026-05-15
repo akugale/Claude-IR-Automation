@@ -28,6 +28,8 @@
     "test:counterpartydetails": "npm run clean && playwright test tests/counterpartydetails.spec.ts",
     "test:defaulterratingdetails": "npm run clean && playwright test tests/defaulterratingdetails.spec.ts",
     "test:fileattachmentconfig": "npm run clean && playwright test tests/fileattachmentconfig.spec.ts",
+    "test:corfindustry": "npm run clean && playwright test tests/corfindustry.spec.ts",
+    "test:mappingwithindustry": "npm run clean && playwright test tests/mappingwithindustry.spec.ts",
     "test:headed": "playwright test --headed",
     "test:debug": "playwright test --debug",
     "report:html": "playwright show-report reports/html",
