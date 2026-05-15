@@ -30,6 +30,8 @@
     "test:fileattachmentconfig": "npm run clean && playwright test tests/fileattachmentconfig.spec.ts",
     "test:corfindustry": "npm run clean && playwright test tests/corfindustry.spec.ts",
     "test:mappingwithindustry": "npm run clean && playwright test tests/mappingwithindustry.spec.ts",
+    "test:externalratingagency": "npm run clean && playwright test tests/externalratingagency.spec.ts",
+    "test:externalratingscale": "npm run clean && playwright test tests/externalratingscale.spec.ts",
     "test:headed": "playwright test --headed",
     "test:debug": "playwright test --debug",
     "report:html": "playwright show-report reports/html",

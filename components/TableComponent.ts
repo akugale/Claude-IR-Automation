@@ -166,6 +166,97 @@ export class TableComponent {
     await this.page.locator(this.filterOverlaySelector).first().waitFor({ state: 'hidden' }).catch(() => {});
   }
 
+  /**
+   * Like applyColumnFilter but uses pressSequentially (key-by-key) instead of fill().
+   * Use for columns whose filter input requires real keyboard events to trigger Angular bindings
+   * (e.g. autocomplete / linked-entity filters where fill() doesn't trigger change detection).
+   * Assumes the filter overlay is ALREADY OPEN via openColumnFilter().
+   */
+  async applyColumnFilterByKeyboard(value: string): Promise<void> {
+    const overlay = await this.getFilterOverlay();
+    const filterInput = overlay
+      .locator([
+        'p-columnfilterformelement input',
+        '.p-column-filter-constraint input[type="text"]',
+        '[data-pc-section="filterconstraint"] input',
+        '[data-pc-section="filterConstraint"] input',
+        'input[type="text"]',
+        'input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"])',
+      ].join(', '))
+      .first();
+    await filterInput.waitFor({ state: 'visible', timeout: 15000 });
+    await filterInput.click();
+    // Select-all + delete to clear existing value without triggering race conditions
+    await filterInput.press('Control+a');
+    await filterInput.press('Delete');
+    // Type character by character so Angular's reactive forms process each keystroke
+    await filterInput.pressSequentially(value, { delay: 80 });
+    const applyBtn = overlay.getByRole('button', { name: /apply/i });
+    if (await applyBtn.isVisible()) {
+      await applyBtn.click({ force: true });
+    } else {
+      await filterInput.press('Enter');
+    }
+    await this.page.locator(this.filterOverlaySelector).first().waitFor({ state: 'hidden' }).catch(() => {});
+  }
+
+  /**
+   * For columns whose filter is a PrimeNG autocomplete/entity filter.
+   * Types text key-by-key → waits for autocomplete suggestion panel → clicks first suggestion → applies.
+   */
+  async applyColumnFilterByAutocomplete(value: string): Promise<void> {
+    const overlay = await this.getFilterOverlay();
+    const filterInput = overlay
+      .locator([
+        'p-columnfilterformelement input',
+        '.p-column-filter-constraint input[type="text"]',
+        '[data-pc-section="filterconstraint"] input',
+        '[data-pc-section="filterConstraint"] input',
+        'input[type="text"]',
+        'input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"])',
+      ].join(', '))
+      .first();
+    await filterInput.waitFor({ state: 'visible', timeout: 15000 });
+    await filterInput.click();
+    await filterInput.press('Control+a');
+    await filterInput.press('Delete');
+    await filterInput.pressSequentially(value, { delay: 80 });
+
+    // Wait for autocomplete suggestion panel (PrimeNG / Angular CDK)
+    const suggestionPanel = this.page.locator([
+      '.p-autocomplete-panel',
+      '[role="listbox"].p-autocomplete-items',
+      '.p-autocomplete-items',
+      'p-autocomplete-overlay',
+      'ul[id*="autocomplete"] li',
+    ].join(', ')).first();
+
+    const panelVisible = await suggestionPanel
+      .waitFor({ state: 'visible', timeout: 5000 })
+      .then(() => true).catch(() => false);
+
+    if (panelVisible) {
+      // Click first suggestion
+      const firstItem = this.page.locator([
+        '.p-autocomplete-panel li.p-autocomplete-item',
+        '.p-autocomplete-items li',
+        '[role="listbox"] [role="option"]',
+        '.p-autocomplete-option',
+      ].join(', ')).first();
+      await firstItem.waitFor({ state: 'visible', timeout: 5000 });
+      await firstItem.click();
+      await suggestionPanel.waitFor({ state: 'hidden', timeout: 3000 }).catch(() => {});
+    }
+
+    const applyBtn = overlay.getByRole('button', { name: /apply/i });
+    if (await applyBtn.isVisible()) {
+      await applyBtn.click({ force: true });
+    } else {
+      await filterInput.press('Enter');
+    }
+    await this.page.locator(this.filterOverlaySelector).first().waitFor({ state: 'hidden' }).catch(() => {});
+  }
+
   // For columns that use a p-select dropdown filter (e.g. boolean/enum columns like Is Locked, Status)
   // Opens the filter, picks the first real option, applies it, and returns the selected option text.
   // Skips the match-mode dropdown (Match All/Match Any) and targets the value dropdown.
