@@ -6,6 +6,8 @@ export class BasePage {
   constructor(protected readonly page: Page) {}
 
   protected async ensureLoggedIn(): Promise<void> {
+    // Wait for Angular SPA to settle — JS redirect to /login happens after 'load' event
+    await this.page.waitForLoadState('networkidle', { timeout: 8000 }).catch(() => {});
     const url = this.page.url();
     if (url.includes('login') || url === 'about:blank' || url === '') {
       const loginPage = new LoginPage(this.page);

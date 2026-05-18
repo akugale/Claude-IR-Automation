@@ -201,6 +201,102 @@ export class TableComponent {
   }
 
   /**
+   * For date columns whose filter overlay shows a PrimeNG calendar picker.
+   * Pass the date text exactly as shown in the table cell (e.g. "11 May 2026").
+   * Assumes filter overlay is ALREADY OPEN via openColumnFilter().
+   */
+  async applyDateColumnFilter(cellDateText: string): Promise<void> {
+    const MONTHS = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
+    const parts = cellDateText.trim().split(/\s+/);
+    if (parts.length < 3) return;
+    const targetDay    = parseInt(parts[0], 10);
+    const targetMonIdx = MONTHS.indexOf(parts[1].toLowerCase().substring(0, 3));
+    const targetYear   = parseInt(parts[2], 10);
+    if (isNaN(targetDay) || targetMonIdx < 0 || isNaN(targetYear)) return;
+
+    const overlay = await this.getFilterOverlay();
+
+    // Date input = last [role="combobox"] in filter overlay
+    // (overlay has: combobox "Match All", combobox "Date is", combobox(date value))
+    const dateInput = overlay.locator('[role="combobox"]').last();
+    await dateInput.waitFor({ state: 'visible', timeout: 10000 });
+    await dateInput.click();
+
+    // Calendar opens as separate dialog "Choose Date" at page level (NOT inside filter overlay)
+    const calendarDialog = this.page.getByRole('dialog', { name: /choose date/i });
+    const calendarVisible = await calendarDialog
+      .waitFor({ state: 'visible', timeout: 8000 })
+      .then(() => true).catch(() => false);
+
+    if (!calendarVisible) {
+      // Fallback: type date directly into input
+      await dateInput.fill(cellDateText);
+      await dateInput.press('Tab');
+    } else {
+      // Navigate to correct month/year using exact aria-label buttons inside the dialog
+      for (let i = 0; i < 48; i++) {
+        const monthText = (await calendarDialog
+          .getByRole('button', { name: 'Choose Month' })
+          .innerText().catch(() => '')).trim().toLowerCase().substring(0, 3);
+        const yearNum = parseInt(
+          (await calendarDialog
+            .getByRole('button', { name: 'Choose Year' })
+            .innerText().catch(() => '0')).trim(), 10,
+        );
+        if (monthText === MONTHS[targetMonIdx] && yearNum === targetYear) break;
+        const target  = new Date(targetYear, targetMonIdx, 1).getTime();
+        const current = new Date(yearNum, MONTHS.indexOf(monthText) >= 0 ? MONTHS.indexOf(monthText) : 0, 1).getTime();
+        if (target > current) {
+          await calendarDialog.getByRole('button', { name: 'Next Month' }).click();
+        } else {
+          await calendarDialog.getByRole('button', { name: 'Previous Month' }).click();
+        }
+        await this.page.waitForTimeout(200);
+      }
+
+      // Click target day — PrimeNG cells use td.p-datepicker-day-cell (no role="gridcell")
+      // Other-month cells add p-datepicker-other-month class; current-month do not
+      await this.page.waitForTimeout(200);
+      const calGrid = calendarDialog.locator('[role="grid"]').last();
+      const dayCells = calGrid.locator('td.p-datepicker-day-cell:not(.p-datepicker-other-month)');
+      await dayCells.first().waitFor({ state: 'visible', timeout: 5000 }).catch(() => {});
+      const dayCount = await dayCells.count();
+      let dayClicked = false;
+      for (let d = 0; d < dayCount; d++) {
+        const t = ((await dayCells.nth(d).innerText().catch(() => '')) ?? '').replace(/\s+/g, '').trim();
+        if (t === String(targetDay)) {
+          await dayCells.nth(d).click();
+          dayClicked = true;
+          break;
+        }
+      }
+      if (!dayClicked) {
+        // Fallback: try any td matching the day (covers alternate structures)
+        await calendarDialog.evaluate((el, day) => {
+          const tds = el.querySelectorAll('td');
+          for (const td of tds) {
+            if (td.classList.contains('p-datepicker-other-month')) continue;
+            if (td.getAttribute('data-p-other-month') === 'true') continue;
+            if ((td.textContent ?? '').replace(/\s+/g, '').trim() === String(day)) {
+              (td as HTMLElement).click();
+              return;
+            }
+          }
+        }, targetDay);
+      }
+
+      await calendarDialog.waitFor({ state: 'hidden', timeout: 3000 }).catch(() => {});
+    }
+
+    // Apply filter
+    const applyBtn = overlay.getByRole('button', { name: /apply/i });
+    if (await applyBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await applyBtn.click({ force: true });
+    }
+    await this.page.locator(this.filterOverlaySelector).first().waitFor({ state: 'hidden' }).catch(() => {});
+  }
+
+  /**
    * For columns whose filter is a PrimeNG autocomplete/entity filter.
    * Types text key-by-key → waits for autocomplete suggestion panel → clicks first suggestion → applies.
    */
